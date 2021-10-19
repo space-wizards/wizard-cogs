@@ -1,0 +1,6 @@
+.vscode
+red-env
+.idea
+
+__pycache__
+.mypy_cache
