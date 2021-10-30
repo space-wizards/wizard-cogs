@@ -6,11 +6,13 @@ import struct
 from datetime import datetime, timezone
 from urllib.parse import urlparse, urlunparse, ParseResult, parse_qs
 from typing import Dict, Any, Optional, Tuple, cast, Union, List, TypeVar, Callable
-from redbot.core import commands, bot, Config, checks
 import discord
 from discord import Embed, Color, TextChannel, Message
 from discord.abc import Messageable
 from discord.ext import tasks
+from redbot.core import commands, bot, Config, checks
+from redbot.core.utils import menus
+from redbot.core.utils.chat_formatting import pagify
 
 log = logging.getLogger("red.wizard-cogs.gameserverstatus")
 
@@ -149,8 +151,11 @@ class GameServerStatus(commands.Cog):
 
     @commands.command()
     async def status(self, ctx: commands.Context, server: Optional[str]) -> None:
+        """
+        Shows status for a game server. Leave out server name to get a list of all servers.
+        """
         if not server:
-            await ctx.send("foo")
+            await self.show_server_list(ctx);
             return
 
         async with ctx.typing():
@@ -165,6 +170,28 @@ class GameServerStatus(commands.Cog):
             embed = await self.create_embed(ctx, server, dat)
 
             await ctx.send(embed=embed)
+
+    async def show_server_list(self, ctx: commands.Context) -> None:
+        servers = await self.config.guild(ctx.guild).servers()
+
+        if len(servers) == 0:
+            await ctx.send("No servers are currently configured!")
+            return
+
+        content = "\n".join(map(lambda s: f"{s[0]}: `{s[1]['address']}`", servers.items()))
+
+        pages = list(pagify(content, page_length=1024))
+        embed_pages = []
+        for idx, page in enumerate(pages, start=1):
+            embed = discord.Embed(
+                title="Server List",
+                description=page,
+                colour=await ctx.embed_colour(),
+            )
+            embed.set_footer(text="Page {num}/{total}".format(num=idx, total=len(pages)))
+            embed_pages.append(embed)
+        await menus.menu(ctx, embed_pages, menus.DEFAULT_CONTROLS)
+
 
     async def create_embed(self, ctx: Messageable, cfgname: str, dat: Dict[str, str]) -> Embed:
         embed = Embed()
@@ -307,6 +334,14 @@ class GameServerStatus(commands.Cog):
 
             del cur_servers[name]
 
+        async with self.config.guild(ctx.guild).watches() as watches:
+            for w in watches:
+                if w["server"] != name:
+                    continue
+                
+                watches.remove(w)
+                await self.remove_watch_message(ctx.guild, w)
+
         await ctx.tick()
 
     @addserver.command(name="ss14")
@@ -376,7 +411,6 @@ class GameServerStatus(commands.Cog):
 
         await ctx.tick()
 
-
     @statuscfg.command()
     async def addwatch(self, ctx: commands.Context, name: str, channel: TextChannel) -> None:
         async with self.config.guild(ctx.guild).watches() as watches:
@@ -397,8 +431,49 @@ class GameServerStatus(commands.Cog):
 
     @statuscfg.command()
     async def remwatch(self, ctx: commands.Context, name: str, channel: TextChannel) -> None:
-        pass
+        async with self.config.guild(ctx.guild).watches() as watches:
+            for w in watches:
+                if w["server"] != name or w["channel"] != channel.id:
+                    continue
+                
+                watches.remove(w)
+                await self.remove_watch_message(ctx.guild, w)
 
+        await ctx.tick()
+
+    async def remove_watch_message(self, guild: discord.Guild, watch_data: Dict[str, Any]) -> None:
+        channel: discord.TextChannel = guild.get_channel(watch_data["channel"])
+        try:
+            message = await channel.fetch_message(watch_data["message"])
+            await message.delete()
+        except Exception as e:
+            log.exception(e)
+            pass
+
+    @statuscfg.command()
+    async def watches(self, ctx: commands.Context) -> None:
+        """
+        Lists currently active watches
+        """
+        watches = await self.config.guild(ctx.guild).watches()
+
+        if len(watches) == 0:
+            await ctx.send("No watches are currently configured!")
+            return
+
+        content = "\n".join(map(lambda w: f"<#{w['channel']}> - {w['server']} - [message](https://discord.com/channels/{ctx.guild.id}/{w['channel']}/{w['message']})", watches))
+
+        pages = list(pagify(content, page_length=1024))
+        embed_pages = []
+        for idx, page in enumerate(pages, start=1):
+            embed = discord.Embed(
+                title="Watch List",
+                description=page,
+                colour=await ctx.embed_colour(),
+            )
+            embed.set_footer(text="Page {num}/{total}".format(num=idx, total=len(pages)))
+            embed_pages.append(embed)
+        await menus.menu(ctx, embed_pages, menus.DEFAULT_CONTROLS)
 
     @tasks.loop(minutes=1)
     async def printer(self) -> None:
