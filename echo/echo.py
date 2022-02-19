@@ -93,7 +93,5 @@ class Echo(commands.Cog):
         for emoji in re_emoji.findall(contents):
             contents = contents.replace(emoji, f"\\{emoji}")
 
-        print(contents)
-
         await ctx.send(contents)
         await ctx.tick()
