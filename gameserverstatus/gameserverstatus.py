@@ -508,7 +508,7 @@ class GameServerStatus(commands.Cog):
             
             # Too Many Requests, wait double the time now.
             if(ex.code == 429):
-                self.printer.change_interval(minutes=self.printer.minutes*2)
+                self.printer.change_interval(minutes=min(self.printer.minutes*2, 10))
 
         except Exception:
             log.exception("Error happened while trying to execute gameserverstatus loop.")
