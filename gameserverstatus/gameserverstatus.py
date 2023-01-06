@@ -497,6 +497,19 @@ class GameServerStatus(commands.Cog):
                     embed = await self.create_embed(channel, server, dat["servers"][server])
 
                     await msg.edit(embed=embed)
+
+                    # Sleep between edits in an attempt to not get rate-limited.
+                    await asyncio.sleep(2)
+
+                    # Set back to default interval.
+                    self.printer.change_interval(minutes=1)
+        except discord.errors.HTTPException as ex:
+            log.exception("Error happened while trying to execute gameserverstatus loop.")
+            
+            # Too Many Requests, wait double the time now.
+            if(ex.code == 429):
+                self.printer.change_interval(seconds=self.printer.minutes*2)
+
         except Exception:
             log.exception("Error happened while trying to execute gameserverstatus loop.")
 
