@@ -477,30 +477,32 @@ class GameServerStatus(commands.Cog):
 
     @tasks.loop(minutes=1)
     async def printer(self) -> None:
-        if not self.bot.is_ready():
-            return
+        try:
+            for (g_id, dat) in (await self.config.all_guilds()).items():
+                for watch in dat["watches"]:
+                    msg_id = watch["message"]
+                    ch_id = watch["channel"]
+                    server = watch["server"]
 
-        for (g_id, dat) in (await self.config.all_guilds()).items():
-            for watch in dat["watches"]:
-                msg_id = watch["message"]
-                ch_id = watch["channel"]
-                server = watch["server"]
+                    try:
+                        channel: TextChannel = self.bot.get_channel(ch_id)
+                        msg: Message = await channel.fetch_message(msg_id)
+                    except discord.NotFound:
+                        # Message gone now, clear config I guess.
+                        async with self.config.guild_from_id(g_id).watches() as w_config:
+                            remove_list_elems(w_config, lambda x: x["message"] == msg_id)
 
-                try:
-                    channel: TextChannel = self.bot.get_channel(ch_id)
-                    msg: Message = await channel.fetch_message(msg_id)
-                except discord.NotFound:
-                    # Message gone now, clear config I guess.
-                    async with self.config.guild_from_id(g_id).watches() as w_config:
-                        remove_list_elems(w_config, lambda x: x["message"] == msg_id)
+                        continue
 
-                    continue
+                    embed = await self.create_embed(channel, server, dat["servers"][server])
 
-                embed = await self.create_embed(channel, server, dat["servers"][server])
+                    await msg.edit(embed=embed)
+        except Exception:
+            log.exception("Error happened while trying to execute gameserverstatus loop.")
 
-                await msg.edit(embed=embed)
-
-
+    @printer.before_loop
+    async def before_loop(self):
+        await self.bot.wait_until_ready()
 
 def get_ss14_status_url(url: str) -> str:
     if "//" not in url:
