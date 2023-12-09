@@ -15,12 +15,6 @@ class responder(commands.Cog):
     async def on_message(self, message: Message) -> None:
         channel = message.channel
 
-        if message.guild is None:
-            return
-
-        if await self.bot.cog_disabled_in_guild(self, message.guild):
-            return
-
         author = message.author
         valid_user = isinstance(author, discord.Member) and not author.bot
         if not valid_user:
