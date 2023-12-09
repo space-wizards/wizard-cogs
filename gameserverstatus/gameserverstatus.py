@@ -19,9 +19,9 @@ log = logging.getLogger("red.wizard-cogs.gameserverstatus")
 TYPE_SS14 = "ss14"
 TYPE_SS13 = "ss13"
 
-SS14_RUN_LEVEL_PREGAME=0
-SS14_RUN_LEVEL_GAME=1
-SS14_RUN_LEVEL_POSTGAME=2
+SS14_RUN_LEVEL_PREGAME = 0
+SS14_RUN_LEVEL_GAME = 1
+SS14_RUN_LEVEL_POSTGAME = 2
 
 QSTAT_TYPES = {
     "a2s": "Half-Life 2 new server",
@@ -124,6 +124,7 @@ QSTAT_TYPES = {
     "zeq2lites": "ZEQ2 Lite server"
 }
 
+
 class GameServerStatus(commands.Cog):
     def __init__(self, bot: bot.Red) -> None:
         self.config = Config.get_conf(self, identifier=5645456348)
@@ -164,7 +165,7 @@ class GameServerStatus(commands.Cog):
             if server not in cfg:
                 await ctx.send("That server does not exist!")
                 return
-            
+
             dat = cfg[server]
 
             embed = await self.create_embed(ctx, server, dat)
@@ -191,7 +192,6 @@ class GameServerStatus(commands.Cog):
             embed.set_footer(text="Page {num}/{total}".format(num=idx, total=len(pages)))
             embed_pages.append(embed)
         await menus.menu(ctx, embed_pages, menus.DEFAULT_CONTROLS)
-
 
     async def create_embed(self, ctx: Messageable, cfgname: str, dat: Dict[str, str]) -> Embed:
         embed = Embed()
@@ -233,20 +233,23 @@ class GameServerStatus(commands.Cog):
 
         async with aiohttp.ClientSession() as session:
             async with session.get(addr + "/status") as resp:
-                json =await resp.json()
+                json = await resp.json()
 
             count = json["players"]
+            countmax = json["soft_max_players"]
             name = json["name"]
+            round_id = json["round_id"]
+            gamemap = json["map"]
 
             if name:
                 embed.title = name
 
-            embed.add_field(name="Players Online", value=count)
+            embed.add_field(name="Players Online", value=f"{count}/{countmax}")
 
             rlevel = json.get("run_level")
             if rlevel is not None:
                 status = "Unknown"
-                
+
                 if rlevel == SS14_RUN_LEVEL_PREGAME:
                     status = "Pre game lobby"
                 elif rlevel == SS14_RUN_LEVEL_GAME:
@@ -256,7 +259,6 @@ class GameServerStatus(commands.Cog):
 
                 embed.add_field(name="Status", value=status)
 
-
             starttimestr = json.get("round_start_time")
             if starttimestr:
                 starttime = dateutil.parser.isoparse(starttimestr)
@@ -264,7 +266,7 @@ class GameServerStatus(commands.Cog):
                 s = []
                 if delta.days > 0:
                     s.append(f"{delta.days} days")
-                
+
                 minutes = delta.seconds // 60
                 hours = minutes // 60
                 if hours > 0:
@@ -274,7 +276,14 @@ class GameServerStatus(commands.Cog):
                 s.append(f"{minutes} minutes")
 
                 embed.add_field(name="Round length", value=", ".join(s))
-    
+
+                embed.add_field(name="Round ID", value=round_id)
+
+                embed.add_field(name="Map", value=gamemap)
+
+                # Cause for some reason discord can't center divs we do it for themfi
+                embed.add_field(name="", value="")
+
     async def do_status_ss13(self, ctx: Messageable, name: str, dat: Dict[str, str], embed: Embed) -> None:
         cfgurl = dat["address"]
         longname = dat.get("name")
@@ -300,25 +309,24 @@ class GameServerStatus(commands.Cog):
             if "station_time" in response:
                 station_time = response["station_time"][0]
             players = response["players"][0]
-    
+
         except:
             log.exception("Got unsupported response")
             raise StatusException("Server sent unsupported response.")
 
         embed.add_field(name="Players Online", value=players)
         if mapname:
-            embed.add_field(name="Map", value=mapname) 
+            embed.add_field(name="Map", value=mapname)
 
         if station_time:
-            embed.add_field(name="Station Time",value=station_time)
-
+            embed.add_field(name="Station Time", value=station_time)
 
     @statuscfg.group()
     async def addserver(self, ctx: commands.Context) -> None:
         """
         Adds a status server.
         """
-        pass 
+        pass
 
     @statuscfg.command()
     async def removeserver(self, ctx: commands.Context, name: str) -> None:
@@ -338,7 +346,7 @@ class GameServerStatus(commands.Cog):
             for w in watches:
                 if w["server"] != name:
                     continue
-                
+
                 watches.remove(w)
                 await self.remove_watch_message(ctx.guild, w)
 
@@ -394,7 +402,7 @@ class GameServerStatus(commands.Cog):
 
 
         `<name>`: The short name to refer to this server.
-        `<type>`: Server type. 
+        `<type>`: Server type.
         `<address>`: The `byond://` address of this server.
         `[longname]`: The "full name" of this server.
         """
@@ -422,7 +430,7 @@ class GameServerStatus(commands.Cog):
 
             embed = await self.create_embed(ctx, name, servers[name])
             msg: Message = await channel.send(embed=embed)
-            
+
             watches.append({
                 "message": msg.id,
                 "server": name,
@@ -435,7 +443,7 @@ class GameServerStatus(commands.Cog):
             for w in watches:
                 if w["server"] != name or w["channel"] != channel.id:
                     continue
-                
+
                 watches.remove(w)
                 await self.remove_watch_message(ctx.guild, w)
 
@@ -461,7 +469,9 @@ class GameServerStatus(commands.Cog):
             await ctx.send("No watches are currently configured!")
             return
 
-        content = "\n".join(map(lambda w: f"<#{w['channel']}> - {w['server']} - [message](https://discord.com/channels/{ctx.guild.id}/{w['channel']}/{w['message']})", watches))
+        content = "\n".join(map(lambda
+                                    w: f"<#{w['channel']}> - {w['server']} - [message](https://discord.com/channels/{ctx.guild.id}/{w['channel']}/{w['message']})",
+                                watches))
 
         pages = list(pagify(content, page_length=1024))
         embed_pages = []
@@ -505,10 +515,10 @@ class GameServerStatus(commands.Cog):
                     self.printer.change_interval(minutes=1)
         except discord.errors.HTTPException as ex:
             log.exception("Error happened while trying to execute gameserverstatus loop.")
-            
+
             # Too Many Requests, wait double the time now.
-            if(ex.code == 429):
-                self.printer.change_interval(minutes=min(self.printer.minutes*2, 10))
+            if (ex.code == 429):
+                self.printer.change_interval(minutes=min(self.printer.minutes * 2, 10))
 
         except Exception:
             log.exception("Error happened while trying to execute gameserverstatus loop.")
@@ -517,10 +527,11 @@ class GameServerStatus(commands.Cog):
     async def before_loop(self):
         await self.bot.wait_until_ready()
 
+
 def get_ss14_status_url(url: str) -> str:
     if "//" not in url:
         url = "//" + url
-    
+
     parsed = urlparse(url, "ss14", allow_fragments=False)
 
     port = parsed.port
@@ -541,7 +552,7 @@ def get_ss14_status_url(url: str) -> str:
 def get_ss13_status_addr(url: str) -> Tuple[str, int]:
     if "//" not in url:
         url = "//" + url
-    
+
     parsed = urlparse(url, "byond", allow_fragments=False)
 
     port = parsed.port
@@ -549,6 +560,7 @@ def get_ss13_status_addr(url: str) -> Tuple[str, int]:
         raise ValueError("No port specified!")
 
     return (cast(str, parsed.hostname), cast(int, parsed.port))
+
 
 """ 
 async def get_status_ss13(address: str, port: int, channel: MChannel, admindata: Optional[List[MIdentifier]]) -> None:
@@ -596,6 +608,7 @@ async def get_status_ss13(address: str, port: int, channel: MChannel, admindata:
 
     await channel.send(out)
  """
+
 
 async def byond_server_topic(address: str, port: int, message: bytes) -> Union[float, Dict[str, List[str]]]:
     if message[0] != 63:
@@ -649,6 +662,7 @@ class StatusException(Exception):
 
 
 T = TypeVar("T")
+
 
 # .NET List<T>.RemoveAll(Predicate<T>)
 # O(n^2) worst case (.NET's is O(n))
