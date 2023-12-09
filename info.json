@@ -1,6 +1,6 @@
 {
     "author" : ["Space Wizards"],
-    "install_msg" : "Thank you for our installing our repo! If you need support, You can ask in the #hosting channel on our official SS14 discord (For Space Station 14 related cogs). Or ping @vasilisiscool in the redbot discord.",
+    "install_msg" : "Thank you for our installing our repo! If you need support, You can ask in the #hosting channel on our official SS14 discord (For Space Station 14 related cogs).",
     "name" : "Space Wizards Cogs",
     "short" : "Useful cogs for server hosters for Space Station 14.",
     "description" : "Useful cogs for server hosters to use on their Space Station 14 servers. An open source project based on the cult classic Space Station 13.",
