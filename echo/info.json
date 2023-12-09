@@ -1,0 +1,9 @@
+{
+    "author" : ["Space Wizards"],
+    "install_msg" : "If you have the permissions, you can just use the echo command.",
+    "name" : "Echo",
+    "short" : "This just copies what you say.",
+    "description" : "This just copies what you say. And lets you edit it",
+    "tags" : ["Echo"],
+    "hidden" : true
+}
