@@ -1,0 +1,9 @@
+{
+    "author" : ["Space Wizards"],
+    "install_msg" : "w-why",
+    "name" : "Auto Responder",
+    "short" : "WYSI, NANOTRASHEN BLOCK GAME, BASED ON WHAT.",
+    "description" : "Responds with when you code it if a message ends with when, tetris to nanotrasen block game, and based to based on what (with language support).",
+    "tags" : ["When you code it", "Wyci", "Nanotrasen block game", "Based on what", "based", "when", "tetris"],
+    "hidden" : true
+}
