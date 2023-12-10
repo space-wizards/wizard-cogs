@@ -281,7 +281,7 @@ class GameServerStatus(commands.Cog):
 
                 embed.add_field(name="Map", value=gamemap)
 
-                # Cause for some reason discord can't center divs we do it for themfi
+                # Cause for some reason discord can't center divs we do it for them
                 embed.add_field(name="", value="")
 
     async def do_status_ss13(self, ctx: Messageable, name: str, dat: Dict[str, str], embed: Embed) -> None:
