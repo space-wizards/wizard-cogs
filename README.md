@@ -22,5 +22,5 @@ Repeats what you say.
 
 ### Game Server Status
 Allows you to set up a status for your SS14 and SS13 servers (and some other third party ones).
-![SS14 Example](media/SS14 game status example.png)
-![SS13 Example](media/SS13 game status example.png)
+![SS14 Example](media/SS14-game-status-example.png)
+![SS13 Example](media/SS13-game-status-example.png)
