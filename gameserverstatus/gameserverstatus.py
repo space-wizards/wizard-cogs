@@ -235,11 +235,11 @@ class GameServerStatus(commands.Cog):
             async with session.get(addr + "/status") as resp:
                 json = await resp.json()
 
-            count = json["players"]
-            countmax = json["soft_max_players"]
-            name = json["name"]
-            round_id = json["round_id"]
-            gamemap = json["map"]
+            count = json.get("players", "?")
+            countmax = json.get("soft_max_players", "?")
+            name = json.get("name", "?")
+            round_id = json.get("round_id", "?")
+            gamemap = json.get("map", "?")
 
             if name:
                 embed.title = name
