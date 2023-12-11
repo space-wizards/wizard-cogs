@@ -88,7 +88,7 @@ class poweractions(commands.Cog):
 
             # Remove trailing slash at the end of the URL
             if view.modal.url.value.endswith("/"):
-                view.modal.url.value = view.modal.url.value[:-1]
+                await ctx.send("Remove the trailing slash at the end of the URL.")
 
             cur_servers[view.modal.name.value] = {
                 "address": view.modal.url.value,
@@ -175,6 +175,7 @@ class poweractions(commands.Cog):
                                                 headers={"Authorization": authheader}) as resp:
                             if resp.status != 200:
                                 await ctx.send(f"Failed to restart the server. Wrong status code: {resp.status}")
+                                return
 
                     await asyncio.wait_for(load(), timeout=5)
 
