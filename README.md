@@ -19,6 +19,9 @@ This is a collection of RedBot Cogs for Space Station 14.
 
 ### Echo
 Repeats what you say.
+<details>
+<img src="media/echo-example.png" alt="Echo Example"/>
+</details>
 
 ### Game Server Status
 Allows you to set up a status for your SS14 and SS13 servers (and some other third party ones).
