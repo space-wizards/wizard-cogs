@@ -30,12 +30,16 @@ class Input(discord.ui.Modal, title='Input server details'):
 
 # Button to bring up the modal
 class Button(discord.ui.View):
-    def __init__(self):
+    def __init__(self, member):
+        self.member = member
         super().__init__()
         self.modal = None
 
     @discord.ui.button(label='Add', style=discord.ButtonStyle.green)
     async def add(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.member != interaction.user:
+            return await interaction.response.send_message("You cannot use this.", ephemeral=True)
+
         self.modal = Input()
         await interaction.response.send_modal(self.modal)
         await self.modal.wait()
@@ -63,12 +67,11 @@ class poweractions(commands.Cog):
         pass
 
     @poweractionscfg.command()
-    # async def add(self, ctx: commands.Context, name: str, url: str, key, token) -> None:
     async def add(self, ctx: commands.Context) -> None:
         """
         Adds a server.
         """
-        view = Button()
+        view = Button(member=ctx.author)
 
         await ctx.send("To add a server press this button.", view=view)
         await view.wait()
@@ -89,6 +92,11 @@ class poweractions(commands.Cog):
             # Remove trailing slash at the end of the URL
             if view.modal.url.value.endswith("/"):
                 await ctx.send("Remove the trailing slash at the end of the URL.")
+
+            if view.modal.url.value.endswith(f"/instances/{view.modal.key.value}/restart"):
+                await ctx.send("No need for the last part of the URL, just the base URL to the watchdog (Example: "
+                               "https://ss14.io/watchdog, http://localhost:1212)")
+                return
 
             cur_servers[view.modal.name.value] = {
                 "address": view.modal.url.value,
@@ -130,6 +138,9 @@ class poweractions(commands.Cog):
 
     @poweractionscfg.command()
     async def list(self, ctx: commands.Context) -> None:
+        """
+        Get a list of servers.
+        """
         servers = await self.config.guild(ctx.guild).servers()
 
         if len(servers) == 0:
