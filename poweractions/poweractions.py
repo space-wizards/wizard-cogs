@@ -1,12 +1,15 @@
 import asyncio
 import base64
-from typing import Optional
+import json
+
 import aiohttp
+from discord import Embed
 from redbot.core import commands, checks, Config
 import logging
 from redbot.core.utils.chat_formatting import pagify
 from redbot.core.utils import menus
 import discord
+from redbot.core.utils.views import ConfirmView
 
 log = logging.getLogger("red.wizard-cogs.gameserverstatus")
 
@@ -27,6 +30,7 @@ class Input(discord.ui.Modal, title='Input server details'):
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.send_message("Processing...", ephemeral=True)
         self.stop()
+
 
 # Button to bring up the modal
 class Button(discord.ui.View):
@@ -122,20 +126,6 @@ class poweractions(commands.Cog):
 
         await ctx.tick()
 
-    @checks.admin()
-    async def restart(self, ctx: commands.Context, server: Optional[str]) -> None:
-        """
-        Restarts a server.
-        """
-        async with ctx.typing():
-            selectedserver = self.config.guild(ctx.guild).servers()
-
-            if server not in selectedserver:
-                await ctx.send("That server did not exist.")
-                return
-            else:
-                server = selectedserver[server]
-
     @poweractionscfg.command()
     async def list(self, ctx: commands.Context) -> None:
         """
@@ -194,4 +184,50 @@ class poweractions(commands.Cog):
                 await ctx.send("Server timed out.")
                 return
 
+            except Exception as e:
+                await ctx.send(f"Server failed to restart. Error: {e}")
+
             await ctx.send("Server restarted successfully.")
+
+    @checks.admin()
+    @commands.command()
+    async def restartnetwork(self, ctx: commands.Context) -> None:
+        """
+        Attemps to restarts all servers on the bot.
+        """
+        view = ConfirmView(ctx.author, disable_buttons=True, timeout=30)
+        view.message = await ctx.send(":warning: You are about to restart all servers configured on this bot "
+                                      "instance, are you certain this is what you want to do", view=view)
+        await view.wait()
+        if view.result:
+            await ctx.send("Restarting all servers...")
+            async with ctx.typing():
+                network_data = await self.config.guild(ctx.guild).servers()
+
+                embed = Embed(title="Network Restart", description="Results of the restarts", color=await ctx.embed_colour())
+
+                for server_name, server_details  in network_data.items():
+                    authheader = "Basic " + base64.b64encode(f"{server_details['key']}:{server_details['token']}".encode("ASCII")).decode(
+                        "ASCII")
+
+                    try:
+                        async with aiohttp.ClientSession() as session:
+                            async def load():
+                                async with session.post(server_details["address"] + f"/instances/{server_details['key']}/restart",
+                                                        headers={"Authorization": authheader}) as resp:
+                                    if resp.status != 200:
+                                        embed.add_field(name=server_name, value=f":x: Wrong status code: {resp.status}", inline=False)
+                                    else:
+                                        embed.add_field(name=server_name, value=":white_check_mark:  Success", inline=False)
+
+                            await asyncio.wait_for(load(), timeout=5)
+
+                    except asyncio.TimeoutError:
+                        embed.add_field(name=server_name, value=":x: Timed out", inline=False)
+
+                    except Exception as e:
+                        embed.add_field(name=server_name, value=f":x: Failed to restart. Error: {e}", inline=False)
+
+                await ctx.send("Done", embed=embed)
+        else:
+            await ctx.send("Canceled. No action taken.")
