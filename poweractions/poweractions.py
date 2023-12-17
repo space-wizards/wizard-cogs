@@ -1,7 +1,5 @@
 import asyncio
 import base64
-import json
-
 import aiohttp
 from discord import Embed
 from redbot.core import commands, checks, Config
