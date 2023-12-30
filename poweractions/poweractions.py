@@ -3,13 +3,13 @@ import base64
 import aiohttp
 from discord import Embed
 from redbot.core import commands, checks, Config
-import logging
+from red_commons.logging import getLogger
 from redbot.core.utils.chat_formatting import pagify
 from redbot.core.utils import menus
 import discord
 from redbot.core.utils.views import ConfirmView
 
-log = logging.getLogger("red.wizard-cogs.gameserverstatus")
+log = getLogger("red.wizard-cogs.gameserverstatus")
 
 
 # Input class for the discord modal
@@ -48,8 +48,20 @@ class Button(discord.ui.View):
         self.stop()
 
 
+async def dorestart(server):
+    async with aiohttp.ClientSession() as session:
+        async def load():
+                authheader = "Basic " + base64.b64encode(f"{server['key']}:{server['token']}".encode("ASCII")).decode("ASCII")
+                async with session.post(server["address"] + f"/instances/{server['key']}/restart",
+                                        headers={"Authorization": authheader}) as resp:
+                    return resp.status, await resp.text()
+
+        result = await asyncio.wait_for(load(), timeout=5)
+        return result
+
 class poweractions(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.config = Config.get_conf(self, identifier=275978)
 
         default_guild = {
@@ -59,7 +71,6 @@ class poweractions(commands.Cog):
         self.config.register_guild(**default_guild)
 
         self.bot = bot
-
     @commands.group()
     @checks.admin()
     async def poweractionscfg(self, ctx: commands.Context) -> None:
@@ -162,28 +173,25 @@ class poweractions(commands.Cog):
                 await ctx.send("That server does not exist.")
                 return
             else:
+                servername = server
                 server = selectedserver[server]
 
-            authheader = "Basic " + base64.b64encode(f"{server['key']}:{server['token']}".encode("ASCII")).decode(
-                "ASCII")
-
             try:
-                async with aiohttp.ClientSession() as session:
-                    async def load():
-                        async with session.post(server["address"] + f"/instances/{server['key']}/restart",
-                                                headers={"Authorization": authheader}) as resp:
-                            if resp.status != 200:
-                                await ctx.send(f"Failed to restart the server. Wrong status code: {resp.status}")
-                                return
-
-                    await asyncio.wait_for(load(), timeout=5)
+                status, response = await dorestart(server)
+                if status != 200:
+                    await ctx.send(f"Failed to restart the server. Wrong status code: {status}")
+                    log.debug(f"Failed to restart {servername}. Wrong status code: {status} Response: {response}")
+                    return
 
             except asyncio.TimeoutError:
                 await ctx.send("Server timed out.")
                 return
 
-            except Exception as e:
-                await ctx.send(f"Server failed to restart. Error: {e}")
+            except Exception:
+                await ctx.send(f"An Unknown error occured while trying to restart this server, Logging to console...")
+                log.exception(
+                    f"An error occurred while trying restart server {servername}.")
+                return
 
             await ctx.send("Server restarted successfully.")
 
@@ -197,35 +205,33 @@ class poweractions(commands.Cog):
         view.message = await ctx.send(":warning: You are about to restart all servers configured on this bot "
                                       "instance, are you certain this is what you want to do", view=view)
         await view.wait()
-        if view.result:
+        if not view.result:
+            await ctx.send("Canceled. No action taken.")
+            return
+        else:
             await ctx.send("Restarting all servers...")
             async with ctx.typing():
                 network_data = await self.config.guild(ctx.guild).servers()
 
-                embed = Embed(title="Network Restart", description="Results of the restarts", color=await ctx.embed_colour())
+                embed = Embed(title="Network Restart", description="Results of the restarts",
+                              color=await ctx.embed_colour())
 
-                for server_name, server_details  in network_data.items():
-                    authheader = "Basic " + base64.b64encode(f"{server_details['key']}:{server_details['token']}".encode("ASCII")).decode(
-                        "ASCII")
-
+                for server_name, server_details in network_data.items():
                     try:
-                        async with aiohttp.ClientSession() as session:
-                            async def load():
-                                async with session.post(server_details["address"] + f"/instances/{server_details['key']}/restart",
-                                                        headers={"Authorization": authheader}) as resp:
-                                    if resp.status != 200:
-                                        embed.add_field(name=server_name, value=f":x: Wrong status code: {resp.status}", inline=False)
-                                    else:
-                                        embed.add_field(name=server_name, value=":white_check_mark:  Success", inline=False)
-
-                            await asyncio.wait_for(load(), timeout=5)
+                        status, response = await dorestart(server_details)
+                        if status != 200:
+                            embed.add_field(name=server_name, value=f":x: Wrong status code: {status}", inline=False)
+                            log.debug(f"(Network restart) Failed to restart {server_details[0]}. "
+                                      f"Wrong status code: {status} Response: {response}")
+                        else:
+                            embed.add_field(name=server_name, value=":white_check_mark:  Success", inline=False)
 
                     except asyncio.TimeoutError:
                         embed.add_field(name=server_name, value=":x: Timed out", inline=False)
 
-                    except Exception as e:
-                        embed.add_field(name=server_name, value=f":x: Failed to restart. Error: {e}", inline=False)
+                    except Exception:
+                        embed.add_field(name=server_name, value=":x: Unknown error, Logging to console", inline=False)
+                        log.exception(
+                            f"(Network restart) An error occurred while trying restart server {server_name}.")
 
                 await ctx.send("Done", embed=embed)
-        else:
-            await ctx.send("Canceled. No action taken.")
