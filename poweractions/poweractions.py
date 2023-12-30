@@ -48,16 +48,17 @@ class Button(discord.ui.View):
         self.stop()
 
 
-async def dorestart(server):
-    async with aiohttp.ClientSession() as session:
-        async def load():
-                authheader = "Basic " + base64.b64encode(f"{server['key']}:{server['token']}".encode("ASCII")).decode("ASCII")
-                async with session.post(server["address"] + f"/instances/{server['key']}/restart",
-                                        headers={"Authorization": authheader}) as resp:
-                    return resp.status, await resp.text()
+async def dorestart(session, server):
+    async def load():
+        authheader = "Basic " + base64.b64encode(f"{server['key']}:{server['token']}".encode("ASCII")).decode(
+            "ASCII")
+        async with session.post(server["address"] + f"/instances/{server['key']}/restart",
+                                headers={"Authorization": authheader}) as resp:
+            return resp.status, await resp.text()
 
-        result = await asyncio.wait_for(load(), timeout=5)
-        return result
+    result = await asyncio.wait_for(load(), timeout=5)
+    return result
+
 
 class poweractions(commands.Cog):
     def __init__(self, bot, *args, **kwargs):
@@ -71,6 +72,7 @@ class poweractions(commands.Cog):
         self.config.register_guild(**default_guild)
 
         self.bot = bot
+
     @commands.group()
     @checks.admin()
     async def poweractionscfg(self, ctx: commands.Context) -> None:
@@ -176,22 +178,24 @@ class poweractions(commands.Cog):
                 servername = server
                 server = selectedserver[server]
 
-            try:
-                status, response = await dorestart(server)
-                if status != 200:
-                    await ctx.send(f"Failed to restart the server. Wrong status code: {status}")
-                    log.debug(f"Failed to restart {servername}. Wrong status code: {status} Response: {response}")
+            async with aiohttp.ClientSession() as session:
+                try:
+                    status, response = await dorestart(session, server)
+                    if status != 200:
+                        await ctx.send(f"Failed to restart the server. Wrong status code: {status}")
+                        log.debug(f"Failed to restart {servername}. Wrong status code: {status} Response: {response}")
+                        return
+
+                except asyncio.TimeoutError:
+                    await ctx.send("Server timed out.")
                     return
 
-            except asyncio.TimeoutError:
-                await ctx.send("Server timed out.")
-                return
-
-            except Exception:
-                await ctx.send(f"An Unknown error occured while trying to restart this server, Logging to console...")
-                log.exception(
-                    f"An error occurred while trying restart server {servername}.")
-                return
+                except Exception:
+                    await ctx.send(
+                        f"An Unknown error occured while trying to restart this server, Logging to console...")
+                    log.exception(
+                        f"An error occurred while trying restart server {servername}.")
+                    return
 
             await ctx.send("Server restarted successfully.")
 
@@ -216,22 +220,25 @@ class poweractions(commands.Cog):
                 embed = Embed(title="Network Restart", description="Results of the restarts",
                               color=await ctx.embed_colour())
 
-                for server_name, server_details in network_data.items():
-                    try:
-                        status, response = await dorestart(server_details)
-                        if status != 200:
-                            embed.add_field(name=server_name, value=f":x: Wrong status code: {status}", inline=False)
-                            log.debug(f"(Network restart) Failed to restart {server_details[0]}. "
-                                      f"Wrong status code: {status} Response: {response}")
-                        else:
-                            embed.add_field(name=server_name, value=":white_check_mark:  Success", inline=False)
+                async with aiohttp.ClientSession() as session:
+                    for server_name, server_details in network_data.items():
+                        try:
+                            status, response = await dorestart(session, server_details)
+                            if status != 200:
+                                embed.add_field(name=server_name, value=f":x: Wrong status code: {status}",
+                                                inline=False)
+                                log.debug(f"(Network restart) Failed to restart {server_details[0]}. "
+                                          f"Wrong status code: {status} Response: {response}")
+                            else:
+                                embed.add_field(name=server_name, value=":white_check_mark:  Success", inline=False)
 
-                    except asyncio.TimeoutError:
-                        embed.add_field(name=server_name, value=":x: Timed out", inline=False)
+                        except asyncio.TimeoutError:
+                            embed.add_field(name=server_name, value=":x: Timed out", inline=False)
 
-                    except Exception:
-                        embed.add_field(name=server_name, value=":x: Unknown error, Logging to console", inline=False)
-                        log.exception(
-                            f"(Network restart) An error occurred while trying restart server {server_name}.")
+                        except Exception:
+                            embed.add_field(name=server_name, value=":x: Unknown error, Logging to console",
+                                            inline=False)
+                            log.exception(
+                                f"(Network restart) An error occurred while trying restart server {server_name}.")
 
                 await ctx.send("Done", embed=embed)
