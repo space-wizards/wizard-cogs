@@ -73,7 +73,7 @@ class poweractions(commands.Cog):
 
         self.bot = bot
 
-    @commands.group()
+    @commands.hybrid_group()
     @checks.admin()
     async def poweractionscfg(self, ctx: commands.Context) -> None:
         """
