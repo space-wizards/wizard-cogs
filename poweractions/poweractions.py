@@ -163,7 +163,7 @@ class poweractions(commands.Cog):
         await menus.menu(ctx, embed_pages, menus.DEFAULT_CONTROLS)
 
     @checks.admin()
-    @commands.command()
+    @commands.hybrid_command()
     async def restartserver(self, ctx: commands.Context, server) -> None:
         """
         Restarts a server.
@@ -202,7 +202,7 @@ class poweractions(commands.Cog):
             await ctx.send("Server restarted successfully.")
 
     @checks.admin()
-    @commands.command()
+    @commands.hybrid_command()
     async def restartnetwork(self, ctx: commands.Context) -> None:
         """
         Attemps to restarts all servers on the bot.
