@@ -1,7 +1,7 @@
 import asyncio
 import base64
 import aiohttp
-from discord import Embed
+from discord import Embed, app_commands
 from redbot.core import commands, checks, Config
 from red_commons.logging import getLogger
 from redbot.core.utils.chat_formatting import pagify
@@ -167,6 +167,8 @@ class poweractions(commands.Cog):
     async def restartserver(self, ctx: commands.Context, server) -> None:
         """
         Restarts a server.
+
+        `<server>`: The name of the server to restart.
         """
         async with ctx.typing():
             selectedserver = await self.config.guild(ctx.guild).servers()
