@@ -142,7 +142,7 @@ class GameServerStatus(commands.Cog):
     def cog_unload(self) -> None:
         self.printer.cancel()
 
-    @commands.group()
+    @commands.hybrid_group()
     @checks.admin()
     async def statuscfg(self, ctx: commands.Context) -> None:
         """
@@ -150,7 +150,7 @@ class GameServerStatus(commands.Cog):
         """
         pass
 
-    @commands.command()
+    @commands.hybrid_command()
     async def status(self, ctx: commands.Context, server: Optional[str]) -> None:
         """
         Shows status for a game server. Leave out server name to get a list of all servers.
@@ -421,6 +421,12 @@ class GameServerStatus(commands.Cog):
 
     @statuscfg.command()
     async def addwatch(self, ctx: commands.Context, name: str, channel: TextChannel) -> None:
+        """
+        Adds a server to the watch list. The bot will update a message with the server status every minute.
+
+        `<name>`: The name of the server to watch.
+        `<channel>`: The channel to send the message to.
+        """
         async with self.config.guild(ctx.guild).watches() as watches:
             servers = await self.config.guild(ctx.guild).servers()
 
@@ -439,6 +445,12 @@ class GameServerStatus(commands.Cog):
 
     @statuscfg.command()
     async def remwatch(self, ctx: commands.Context, name: str, channel: TextChannel) -> None:
+        """
+        Removes a server to the watch list.
+
+        `<name>`: The name of the server to remove from a watch.
+        `<channel>`: The channel to remove from.
+        """
         async with self.config.guild(ctx.guild).watches() as watches:
             for w in watches:
                 if w["server"] != name or w["channel"] != channel.id:
