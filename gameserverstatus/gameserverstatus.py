@@ -240,6 +240,7 @@ class GameServerStatus(commands.Cog):
             name = json.get("name", "?")
             round_id = json.get("round_id", "?")
             gamemap = json.get("map", "?")
+            preset = json.get("preset", "?")
 
             if name:
                 embed.title = name
@@ -281,8 +282,7 @@ class GameServerStatus(commands.Cog):
 
                 embed.add_field(name="Map", value=gamemap)
 
-                # Cause for some reason discord can't center divs we do it for them
-                embed.add_field(name="", value="")
+                embed.add_field(name="Preset", value=preset)
 
     async def do_status_ss13(self, ctx: Messageable, name: str, dat: Dict[str, str], embed: Embed) -> None:
         cfgurl = dat["address"]
