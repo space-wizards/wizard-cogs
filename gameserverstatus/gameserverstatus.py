@@ -156,17 +156,19 @@ class GameServerStatus(commands.Cog):
         Shows status for a game server. Leave out server name to get a list of all servers.
         """
         if not server:
-            await self.show_server_list(ctx);
+            await self.show_server_list(ctx)
             return
 
         async with ctx.typing():
+            server = server.lower()
             cfg = await self.config.guild(ctx.guild).servers()
+            cfg_lower = {key.lower(): value for (key, value) in cfg.items()}
 
-            if server not in cfg:
+            if server not in cfg_lower:
                 await ctx.send("That server does not exist!")
                 return
 
-            dat = cfg[server]
+            dat = cfg_lower[server]
 
             embed = await self.create_embed(ctx, server, dat)
 
@@ -335,6 +337,7 @@ class GameServerStatus(commands.Cog):
 
         `<name>`: The name of the server to remove.
         """
+        name = name.lower()
         async with self.config.guild(ctx.guild).servers() as cur_servers:
             if name not in cur_servers:
                 await ctx.send("That server did not exist.")
@@ -361,6 +364,7 @@ class GameServerStatus(commands.Cog):
         `<address>`: The `ss14://` or `ss14s://` address of this server.
         `[longname]`: The "full name" of this server.
         """
+        name = name.lower()
         async with self.config.guild(ctx.guild).servers() as cur_servers:
             if name in cur_servers:
                 await ctx.send("A server with that name already exists.")
@@ -383,6 +387,7 @@ class GameServerStatus(commands.Cog):
         `<address>`: The `byond://` address of this server.
         `[longname]`: The "full name" of this server.
         """
+        name = name.lower()
         async with self.config.guild(ctx.guild).servers() as cur_servers:
             if name in cur_servers:
                 await ctx.send("A server with that name already exists.")
@@ -406,6 +411,7 @@ class GameServerStatus(commands.Cog):
         `<address>`: The `byond://` address of this server.
         `[longname]`: The "full name" of this server.
         """
+        name = name.lower()
         async with self.config.guild(ctx.guild).servers() as cur_servers:
             if name in cur_servers:
                 await ctx.send("A server with that name already exists.")
@@ -427,6 +433,7 @@ class GameServerStatus(commands.Cog):
         `<name>`: The name of the server to watch.
         `<channel>`: The channel to send the message to.
         """
+        name = name.lower()
         async with self.config.guild(ctx.guild).watches() as watches:
             servers = await self.config.guild(ctx.guild).servers()
 
@@ -451,6 +458,7 @@ class GameServerStatus(commands.Cog):
         `<name>`: The name of the server to remove from a watch.
         `<channel>`: The channel to remove from.
         """
+        name = name.lower()
         async with self.config.guild(ctx.guild).watches() as watches:
             for w in watches:
                 if w["server"] != name or w["channel"] != channel.id:
