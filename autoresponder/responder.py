@@ -73,8 +73,8 @@ class responder(commands.Cog):
                 based = "Cad é ina bunaithe?"
                 unbased = "Ní bunaithe."
                 
-            elif match.group(1).lower() == "βασισμένο" or "βασισμενο"
-                based = "Βασισμένο σε τη;"
+            elif match.group(1).lower() == "βασισμένο" or "βασισμενο":
+                based = "Βασισμένο σε τι;"
                 unbased = "Αβάσιμο."
 
             if random.random() > 0.005:
