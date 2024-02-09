@@ -39,7 +39,7 @@ class responder(commands.Cog):
 
         # Based
 
-        match = re.search(r"^\s*(based|gebaseerd|basé|basato|basado|basiert|ベース)[\s*?.!)]*$", message.content,
+        match = re.search(r"^\s*(based|gebaseerd|basé|basato|basado|basiert|βασισμένο|βασισμενο|ベース)[\s*?.!)]*$", message.content,
                           re.IGNORECASE)
         if match:
             based = "Based on what?"
@@ -72,6 +72,10 @@ class responder(commands.Cog):
             elif match.group(1).lower() == "bunaithe":
                 based = "Cad é ina bunaithe?"
                 unbased = "Ní bunaithe."
+                
+            elif match.group(1).lower() == "βασισμένο" or "βασισμενο":
+                based = "Βασισμένο σε τι;"
+                unbased = "Αβάσιμο."
 
             if random.random() > 0.005:
                 await channel.send(based)
