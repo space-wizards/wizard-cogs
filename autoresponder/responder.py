@@ -38,10 +38,8 @@ class responder(commands.Cog):
 
         # Based
 
-        match = re.search(
-            r"^\s*(based|gebaseerd|basé|basato|basado|basiert|bunaithe|βασισμένο|βασισμενο|ベース)[\s*?.!)]*$",
-            message.content,
-            re.IGNORECASE)
+        match = re.search(r"^\s*(based|gebaseerd|basé|basato|basado|basiert|βασισμένο|βασισμενο|ベース)[\s*?.!)]*$", message.content,
+                          re.IGNORECASE)
 
         if match:
             if match.group(1).lower() == "based":
