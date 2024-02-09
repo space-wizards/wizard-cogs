@@ -73,7 +73,7 @@ class responder(commands.Cog):
                 unbased = u"ベースではない"
 
             elif match.group(1).lower() == "bunaithe":
-                based = "Cad éina bunaithe?"
+                based = "Cad é ina bunaithe?"
                 unbased = "Ní bunaithe."
 
             elif match.group(1).lower() in ["βασισμένο", "βασισμενο"]:
