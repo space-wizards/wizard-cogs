@@ -41,9 +41,11 @@ class responder(commands.Cog):
 
         match = re.search(r"^\s*(based|gebaseerd|basé|basato|basado|basiert|βασισμένο|βασισμενο|ベース)[\s*?.!)]*$", message.content,
                           re.IGNORECASE)
+
         if match:
-            based = "Based on what?"
-            unbased = "Not Based."
+            if match.group(1).lower() == "based":
+                based = "Based on what?"
+                unbased = "Not Based."
 
             if match.group(1).lower() == "gebaseerd":
                 based = "Gebaseerd op wat?"
@@ -70,10 +72,10 @@ class responder(commands.Cog):
                 unbased = u"ベースではない"
 
             elif match.group(1).lower() == "bunaithe":
-                based = "Cad é ina bunaithe?"
+                based = "Cad é ina bunaithe?"
                 unbased = "Ní bunaithe."
-                
-            elif match.group(1).lower() == "βασισμένο" or "βασισμενο":
+
+            elif match.group(1).lower() in ["βασισμένο", "βασισμενο"]:
                 based = "Βασισμένο σε τι;"
                 unbased = "Αβάσιμο."
 
