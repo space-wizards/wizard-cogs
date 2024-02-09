@@ -23,7 +23,6 @@ class responder(commands.Cog):
         if await self.bot.is_automod_immune(message):
             return
 
-
         # Tetris
         match = re.search(r".*tetris.*", message.content, re.IGNORECASE)
         if match:
@@ -39,11 +38,15 @@ class responder(commands.Cog):
 
         # Based
 
-        match = re.search(r"^\s*(based|gebaseerd|basé|basato|basado|basiert|βασισμένο|βασισμενο|ベース)[\s*?.!)]*$", message.content,
-                          re.IGNORECASE)
+        match = re.search(
+            r"^\s*(based|gebaseerd|basé|basato|basado|basiert|bunaithe|βασισμένο|βασισμενο|ベース)[\s*?.!)]*$",
+            message.content,
+            re.IGNORECASE)
+
         if match:
-            based = "Based on what?"
-            unbased = "Not Based."
+            if match.group(1).lower() == "based":
+                based = "Based on what?"
+                unbased = "Not Based."
 
             if match.group(1).lower() == "gebaseerd":
                 based = "Gebaseerd op wat?"
@@ -70,10 +73,10 @@ class responder(commands.Cog):
                 unbased = u"ベースではない"
 
             elif match.group(1).lower() == "bunaithe":
-                based = "Cad é ina bunaithe?"
+                based = "Cad éina bunaithe?"
                 unbased = "Ní bunaithe."
-                
-            elif match.group(1).lower() == "βασισμένο" or "βασισμενο":
+
+            elif match.group(1).lower() in ["βασισμένο", "βασισμενο"]:
                 based = "Βασισμένο σε τι;"
                 unbased = "Αβάσιμο."
 
