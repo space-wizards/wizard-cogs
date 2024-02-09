@@ -23,6 +23,7 @@ class responder(commands.Cog):
         if await self.bot.is_automod_immune(message):
             return
 
+
         # Tetris
         match = re.search(r".*tetris.*", message.content, re.IGNORECASE)
         if match:
