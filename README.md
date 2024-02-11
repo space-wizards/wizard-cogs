@@ -3,6 +3,7 @@
 This is a collection of RedBot Cogs for Space Station 14.
 
 ## Installation
+
 1. Get downloader if you don't already have it
 
 ```[p]load downloader```
@@ -14,6 +15,8 @@ This is a collection of RedBot Cogs for Space Station 14.
 3. and install the cog you want
 
 ```[p]cog install wizard-cogs <cog_name>```
+
+More in-depth documentation along with how to set up your own bot can be found here in our [documentation](https://docs.spacestation14.com/en/server-hosting/setting-up-redbot.html)
 
 ## Available Cogs
 
