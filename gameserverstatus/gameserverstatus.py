@@ -144,7 +144,7 @@ class GameServerStatus(commands.Cog):
 
     async def is_guild(self: commands.Context) -> bool:
         if isinstance(self.channel, discord.channel.DMChannel):
-            await self.channel.send("You cannot use this command in DM's.")
+            await self.channel.send("You cannot use this command in DMs.")
             return False
         return True
 
