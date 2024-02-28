@@ -142,19 +142,29 @@ class GameServerStatus(commands.Cog):
     def cog_unload(self) -> None:
         self.printer.cancel()
 
+    async def is_guild(self: commands.Context) -> bool:
+        if isinstance(self.channel, discord.channel.DMChannel):
+            await self.channel.send("You cannot use this command in DM's.")
+            return False
+        return True
+
     @commands.hybrid_group()
     @checks.admin()
+    @commands.check(is_guild)
     async def statuscfg(self, ctx: commands.Context) -> None:
         """
         Commands for configuring the status servers.
         """
-        pass
 
     @commands.hybrid_command()
     async def status(self, ctx: commands.Context, server: Optional[str]) -> None:
         """
         Shows status for a game server. Leave out server name to get a list of all servers.
         """
+        if isinstance(ctx.channel, discord.channel.DMChannel):
+            await ctx.send("You cannot use this command in DM's.")
+            return
+
         if not server:
             await self.show_server_list(ctx)
             return
