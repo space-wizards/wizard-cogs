@@ -158,13 +158,11 @@ class GameServerStatus(commands.Cog):
         pass
 
     @commands.hybrid_command()
+    @commands.check(is_guild)
     async def status(self, ctx: commands.Context, server: Optional[str]) -> None:
         """
         Shows status for a game server. Leave out server name to get a list of all servers.
         """
-        if isinstance(ctx.channel, discord.channel.DMChannel):
-            await ctx.send("You cannot use this command in DM's.")
-            return
 
         if not server:
             await self.show_server_list(ctx)
