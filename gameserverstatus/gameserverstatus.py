@@ -155,6 +155,7 @@ class GameServerStatus(commands.Cog):
         """
         Commands for configuring the status servers.
         """
+        pass
 
     @commands.hybrid_command()
     async def status(self, ctx: commands.Context, server: Optional[str]) -> None:
