@@ -52,8 +52,8 @@ class responder(commands.Cog):
                 unbased = "Niet Gebaseerd."
 
             elif match.group(1).lower() == "basiert":
-                based = "Worüber?"
-                unbased = "Nich basiert."
+                based = "Worauf?"
+                unbased = "Nicht basiert."
 
             elif match.group(1).lower() == "basé":
                 based = "Sur quoi?"
