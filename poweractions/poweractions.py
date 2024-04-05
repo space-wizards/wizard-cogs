@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import aiohttp
+from typing import Any
 from discord import Embed, app_commands
 from redbot.core import commands, checks, Config
 from red_commons.logging import getLogger
@@ -47,18 +48,23 @@ class Button(discord.ui.View):
         await self.modal.wait()
         self.stop()
 
+ACTION_TIMEOUT = 5
 
-async def dorestart(session, server):
-    async def load():
-        authheader = "Basic " + base64.b64encode(f"{server['key']}:{server['token']}".encode("ASCII")).decode(
-            "ASCII")
+async def dorestart(session: aiohttp.ClientSession, server) -> tuple[int, str]:
+    async def load() -> tuple[int, str]:
         async with session.post(server["address"] + f"/instances/{server['key']}/restart",
-                                headers={"Authorization": authheader}) as resp:
+                                auth=aiohttp.BasicAuth(server['key'], server['token'])) as resp:
             return resp.status, await resp.text()
 
-    result = await asyncio.wait_for(load(), timeout=5)
-    return result
+    return await asyncio.wait_for(load(), timeout=ACTION_TIMEOUT)
 
+async def dostop(session: aiohttp.ClientSession, server) -> tuple[int, str]:
+    async def load() -> tuple[int, str]:
+        async with session.post(server["address"] + f"/instances/{server['key']}/stop",
+                                auth=aiohttp.BasicAuth(server['key'], server['token'])) as resp:
+            return resp.status, await resp.text()
+
+    return await asyncio.wait_for(load(), timeout=ACTION_TIMEOUT)
 
 class poweractions(commands.Cog):
     def __init__(self, bot, *args, **kwargs):
@@ -171,14 +177,11 @@ class poweractions(commands.Cog):
         `<server>`: The name of the server to restart.
         """
         async with ctx.typing():
-            selectedserver = await self.config.guild(ctx.guild).servers()
-
-            if server not in selectedserver:
-                await ctx.send("That server does not exist.")
+            foundServer = await self.get_server_from_arg(ctx, server)
+            if foundServer is None:
                 return
-            else:
-                servername = server
-                server = selectedserver[server]
+            
+            servername, server = foundServer
 
             async with aiohttp.ClientSession() as session:
                 try:
@@ -200,6 +203,52 @@ class poweractions(commands.Cog):
                     return
 
             await ctx.send("Server restarted successfully.")
+
+    @checks.admin()
+    @commands.hybrid_command()
+    async def stopserver(self, ctx: commands.Context, server) -> None:
+        """
+        Stops a server. The server will wait for the round to end, but will not be automatically restarted.
+
+        `<server>`: The name of the server to stop.
+        """
+        async with ctx.typing():
+            foundServer = await self.get_server_from_arg(ctx, server)
+            if foundServer is None:
+                return
+            
+            servername, server = foundServer
+
+            async with aiohttp.ClientSession() as session:
+                try:
+                    status, response = await dostop(session, server)
+                    if status != 200:
+                        await ctx.send(f"Failed to stop the server. Wrong status code: {status}")
+                        log.debug(f"Failed to stop {servername}. Wrong status code: {status} Response: {response}")
+                        return
+
+                except asyncio.TimeoutError:
+                    await ctx.send("Server timed out.")
+                    return
+
+                except Exception:
+                    await ctx.send(
+                        f"An Unknown error occured while trying to stop this server, Logging to console...")
+                    log.exception(
+                        f"An error occurred while trying to stop the server {servername}.")
+                    return
+
+            await ctx.send("Server stopped successfully.")
+
+
+    async def get_server_from_arg(self, ctx: commands.Context, server) -> tuple[Any, Any] | None:
+        selectedserver = await self.config.guild(ctx.guild).servers()
+
+        if server not in selectedserver:
+            await ctx.send("That server does not exist.")
+            return None
+        
+        return (server, selectedserver[server])
 
     @checks.admin()
     @commands.hybrid_command()
