@@ -1,7 +1,7 @@
 import asyncio
 import base64
 import aiohttp
-from typing import Any
+from typing import Any, Optional
 from discord import Embed, app_commands
 from redbot.core import commands, checks, Config
 from red_commons.logging import getLogger
@@ -170,12 +170,16 @@ class poweractions(commands.Cog):
 
     @checks.admin()
     @commands.hybrid_command()
-    async def restartserver(self, ctx: commands.Context, server) -> None:
+    async def restartserver(self, ctx: commands.Context, server: Optional[str]) -> None:
         """
         Restarts a server.
 
         `<server>`: The name of the server to restart.
         """
+        if not server:
+            await self.list(ctx)
+            return
+
         async with ctx.typing():
             foundServer = await self.get_server_from_arg(ctx, server)
             if foundServer is None:
@@ -206,12 +210,16 @@ class poweractions(commands.Cog):
 
     @checks.admin()
     @commands.hybrid_command()
-    async def stopserver(self, ctx: commands.Context, server) -> None:
+    async def stopserver(self, ctx: commands.Context, server: Optional[str]) -> None:
         """
         Stops a server. The server will wait for the round to end, but will not be automatically restarted.
 
         `<server>`: The name of the server to stop.
         """
+        if not server:
+            await self.list(ctx)
+            return
+    
         async with ctx.typing():
             foundServer = await self.get_server_from_arg(ctx, server)
             if foundServer is None:
