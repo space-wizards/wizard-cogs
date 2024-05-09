@@ -248,7 +248,7 @@ class poweractions(commands.Cog):
 
             await ctx.send("Server stopped successfully.")
 
-    async def get_server_from_arg(self, ctx: commands.Context, server) -> Union[tuple[Any, Any], None]:
+    async def get_server_from_arg(self, ctx: commands.Context, server) -> Optional[Any]:
         selectedserver = await self.config.guild(ctx.guild).servers()
 
         if server not in selectedserver:
