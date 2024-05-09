@@ -1,7 +1,7 @@
 import asyncio
 import base64
 import aiohttp
-from typing import Any, Optional
+from typing import Any, Optional, Union
 from discord import Embed, app_commands
 from redbot.core import commands, checks, Config
 from red_commons.logging import getLogger
@@ -248,14 +248,13 @@ class poweractions(commands.Cog):
 
             await ctx.send("Server stopped successfully.")
 
-
-    async def get_server_from_arg(self, ctx: commands.Context, server) -> tuple[Any, Any] | None:
+    async def get_server_from_arg(self, ctx: commands.Context, server) -> Union[tuple[Any, Any], None]:
         selectedserver = await self.config.guild(ctx.guild).servers()
 
         if server not in selectedserver:
             await ctx.send("That server does not exist.")
             return None
-        
+
         return (server, selectedserver[server])
 
     @checks.admin()
