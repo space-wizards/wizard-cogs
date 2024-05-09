@@ -1,7 +1,7 @@
 import asyncio
 import base64
 import aiohttp
-from typing import Any, Optional, Union
+from typing import Any, Optional
 from discord import Embed, app_commands
 from redbot.core import commands, checks, Config
 from red_commons.logging import getLogger
