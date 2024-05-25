@@ -2,6 +2,8 @@
 
 This is a collection of RedBot Cogs for Space Station 14.
 
+[Documention](https://docs.spacestation14.com/en/server-hosting/setting-up-redbot.html)
+
 ## Installation
 
 1. Get downloader if you don't already have it
