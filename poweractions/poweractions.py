@@ -50,7 +50,7 @@ class Button(discord.ui.View):
 
 ACTION_TIMEOUT = 5
 
-async def doaction(session: aiohttp.ClientSession, server, action) -> tuple[int, str]:
+async def doaction(session: aiohttp.ClientSession, server, action: str) -> tuple[int, str]:
     async def load() -> tuple[int, str]:
         async with session.post(server["address"] + f"/instances/{server['key']}/{action}",
                                 auth=aiohttp.BasicAuth(server['key'], server['token'])) as resp:
