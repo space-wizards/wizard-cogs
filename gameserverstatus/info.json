@@ -1,8 +1,8 @@
 {
     "author" : ["Space Wizards"],
-    "install_msg" : "Successfully installed the SS14 Game Server Status cog! Please configure it with [p]statuscfg addserver.",
+    "install_msg" : "Successfully installed the SS14 Game Server Status cog! Setup documentation can be found [here](https://docs.spacestation14.com/en/server-hosting/setting-up-redbot.html#game-server-status).",
     "name" : "SS14 and SS13 Game Server Status",
-    "short" : "Shows the status of your SS14 server and a bunch of other stuff.",
-    "description" : "Shows the status of your SS14, SS13, including player count, map, and round status. (and some other game servers that have qstat support)",
+    "short" : "Shows the status of your SS14 servers.",
+    "description" : "Shows the status of your Space Station 14 servers that include map, player count, round lenght, and more. Also supports Space Station 13 servers and qstat compatible games.",
     "tags" : ["Space Station 14", "SS14", "SS13", "Space Station 13" ,"Space Wizards", "Status", "qstat"]
 }
