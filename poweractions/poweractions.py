@@ -50,17 +50,9 @@ class Button(discord.ui.View):
 
 ACTION_TIMEOUT = 5
 
-async def dorestart(session: aiohttp.ClientSession, server) -> tuple[int, str]:
+async def doaction(session: aiohttp.ClientSession, server, action) -> tuple[int, str]:
     async def load() -> tuple[int, str]:
-        async with session.post(server["address"] + f"/instances/{server['key']}/restart",
-                                auth=aiohttp.BasicAuth(server['key'], server['token'])) as resp:
-            return resp.status, await resp.text()
-
-    return await asyncio.wait_for(load(), timeout=ACTION_TIMEOUT)
-
-async def dostop(session: aiohttp.ClientSession, server) -> tuple[int, str]:
-    async def load() -> tuple[int, str]:
-        async with session.post(server["address"] + f"/instances/{server['key']}/stop",
+        async with session.post(server["address"] + f"/instances/{server['key']}/{action}",
                                 auth=aiohttp.BasicAuth(server['key'], server['token'])) as resp:
             return resp.status, await resp.text()
 
@@ -189,7 +181,7 @@ class poweractions(commands.Cog):
 
             async with aiohttp.ClientSession() as session:
                 try:
-                    status, response = await dorestart(session, server)
+                    status, response = await doaction(session, server, "restart")
                     if status != 200:
                         await ctx.send(f"Failed to restart the server. Wrong status code: {status}")
                         log.debug(f"Failed to restart {servername}. Wrong status code: {status} Response: {response}")
@@ -207,6 +199,46 @@ class poweractions(commands.Cog):
                     return
 
             await ctx.send("Server restarted successfully.")
+
+    @checks.admin()
+    @commands.hybrid_command()
+    async def updateserver(self, ctx: commands.Context, server: Optional[str]) -> None:
+        """
+        Sends an update request to a server.
+
+        `<server>`: The name of the server to update.
+        """
+        if not server:
+            await self.list(ctx)
+            return
+
+        async with ctx.typing():
+            foundServer = await self.get_server_from_arg(ctx, server)
+            if foundServer is None:
+                return
+
+            servername, server = foundServer
+
+            async with aiohttp.ClientSession() as session:
+                try:
+                    status, response = await doaction(session, server, "update")
+                    if status != 200:
+                        await ctx.send(f"Failed to request server update. Wrong status code: {status}")
+                        log.debug(f"Failed to update {servername}. Wrong status code: {status} Response: {response}")
+                        return
+
+                except asyncio.TimeoutError:
+                    await ctx.send("Server timed out.")
+                    return
+
+                except Exception:
+                    await ctx.send(
+                        f"An Unknown error occured while trying to request this server to update, Logging to console...")
+                    log.exception(
+                        f"An error occurred while trying update server {servername}.")
+                    return
+
+            await ctx.send("Server has been told to update successfully.")
 
     @checks.admin()
     @commands.hybrid_command()
@@ -229,7 +261,7 @@ class poweractions(commands.Cog):
 
             async with aiohttp.ClientSession() as session:
                 try:
-                    status, response = await dostop(session, server)
+                    status, response = await doaction(session, server, "stop")
                     if status != 200:
                         await ctx.send(f"Failed to stop the server. Wrong status code: {status}")
                         log.debug(f"Failed to stop {servername}. Wrong status code: {status} Response: {response}")
@@ -281,7 +313,7 @@ class poweractions(commands.Cog):
                 async with aiohttp.ClientSession() as session:
                     for server_name, server_details in network_data.items():
                         try:
-                            status, response = await dorestart(session, server_details)
+                            status, response = await doaction(session, server_details, "restart")
                             if status != 200:
                                 embed.add_field(name=server_name, value=f":x: Wrong status code: {status}",
                                                 inline=False)
