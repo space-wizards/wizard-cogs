@@ -16,8 +16,8 @@ log = getLogger("red.wizard-cogs.gameserverstatus")
 # Input class for the discord modal
 class Input(discord.ui.Modal, title='Input server details'):
     name = discord.ui.TextInput(label='Name', placeholder='Server name (You can choose this yourself)', required=True)
-    url = discord.ui.TextInput(label='URL',
-                               placeholder='Watchdog server URL (https://ss14.io/watchdog http://localhost:1212)',
+    url = discord.ui.TextInput(label='Watchdog URL',
+                               placeholder='Watchdog server URL (https://ss14.io/watchdog http://localhost:5000)',
                                required=True)
     key = discord.ui.TextInput(label='Server ID',
                                placeholder='Server ID (ID of the the server)',
@@ -108,7 +108,7 @@ class poweractions(commands.Cog):
 
             if view.modal.url.value.endswith(f"/instances/{view.modal.key.value}/restart"):
                 await ctx.send("No need for the last part of the URL, just the base URL to the watchdog (Example: "
-                               "https://ss14.io/watchdog, http://localhost:1212)")
+                               "https://ss14.io/watchdog, http://localhost:5000)")
                 return
 
             cur_servers[view.modal.name.value] = {
