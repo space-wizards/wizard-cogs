@@ -1,0 +1,13 @@
+{
+    "author": [
+        "Simyon264"
+    ],
+    "install_msg": "Successfully installed the SS14 OOC relay cog! Get started by runing `!addrelay`",
+    "name": "SS14 OOC relay",
+    "short": "Relays OOC messages from SS14 servers to Discord and vice versa.",
+    "description": "Relays OOC messages from SS14 servers to Discord and vice versa. Requires a server running Space Station 14 with the ooc relay enabled.",
+    "tags": [
+        "Space Station 14",
+        "SS14"
+    ]
+}
