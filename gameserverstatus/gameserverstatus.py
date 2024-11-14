@@ -374,6 +374,10 @@ class GameServerStatus(commands.Cog):
         `[longname]`: The "full name" of this server.
         """
         name = name.lower()
+        
+        if address.endswith("/"):
+            address = address[:-1]
+        
         async with self.config.guild(ctx.guild).servers() as cur_servers:
             if name in cur_servers:
                 await ctx.send("A server with that name already exists.")
