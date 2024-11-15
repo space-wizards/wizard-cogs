@@ -375,8 +375,7 @@ class GameServerStatus(commands.Cog):
         """
         name = name.lower()
         
-        if address.endswith("/"):
-            address = address[:-1]
+        address = address.rstrip("/")
         
         async with self.config.guild(ctx.guild).servers() as cur_servers:
             if name in cur_servers:
