@@ -121,7 +121,7 @@ QSTAT_TYPES = {
     "wolfs": "Wolfenstein server",
     "wops": "World Of Padman server",
     "xonotics": "Xonotic server",
-    "zeq2lites": "ZEQ2 Lite server"
+    "zeq2lites": "ZEQ2 Lite server",
 }
 
 
@@ -129,10 +129,7 @@ class GameServerStatus(commands.Cog):
     def __init__(self, bot: bot.Red) -> None:
         self.config = Config.get_conf(self, identifier=5645456348)
 
-        default_guild: Dict[str, Any] = {
-            "servers": {},
-            "watches": []
-        }
+        default_guild: Dict[str, Any] = {"servers": {}, "watches": []}
 
         self.config.register_guild(**default_guild)
 
@@ -142,7 +139,7 @@ class GameServerStatus(commands.Cog):
     def cog_unload(self) -> None:
         self.printer.cancel()
 
-    async def is_guild(self: commands.Context) -> bool:
+    async def is_guild(self) -> bool:
         if isinstance(self.channel, discord.channel.DMChannel):
             await self.channel.send("You cannot use this command in DMs.")
             return False
@@ -190,7 +187,9 @@ class GameServerStatus(commands.Cog):
             await ctx.send("No servers are currently configured!")
             return
 
-        content = "\n".join(map(lambda s: f"{s[0]}: `{s[1]['address']}`", servers.items()))
+        content = "\n".join(
+            map(lambda s: f"{s[0]}: `{s[1]['address']}`", servers.items())
+        )
 
         pages = list(pagify(content, page_length=1024))
         embed_pages = []
@@ -200,11 +199,15 @@ class GameServerStatus(commands.Cog):
                 description=page,
                 colour=await ctx.embed_colour(),
             )
-            embed.set_footer(text="Page {num}/{total}".format(num=idx, total=len(pages)))
+            embed.set_footer(
+                text="Page {num}/{total}".format(num=idx, total=len(pages))
+            )
             embed_pages.append(embed)
         await menus.menu(ctx, embed_pages, menus.DEFAULT_CONTROLS)
 
-    async def create_embed(self, ctx: Messageable, cfgname: str, dat: Dict[str, str]) -> Embed:
+    async def create_embed(
+        self, ctx: Messageable, cfgname: str, dat: Dict[str, str]
+    ) -> Embed:
         embed = Embed()
         embed.color = Color.red()
 
@@ -233,7 +236,9 @@ class GameServerStatus(commands.Cog):
 
         return embed
 
-    async def do_status_ss14(self, ctx: Messageable, cfgname: str, dat: Dict[str, str], embed: Embed) -> None:
+    async def do_status_ss14(
+        self, ctx: Messageable, cfgname: str, dat: Dict[str, str], embed: Embed
+    ) -> None:
         cfgurl = dat["address"]
         longname = dat.get("name")
         addr = get_ss14_status_url(cfgurl)
@@ -295,7 +300,9 @@ class GameServerStatus(commands.Cog):
 
                 embed.add_field(name="Preset", value=preset)
 
-    async def do_status_ss13(self, ctx: Messageable, name: str, dat: Dict[str, str], embed: Embed) -> None:
+    async def do_status_ss13(
+        self, ctx: Messageable, name: str, dat: Dict[str, str], embed: Embed
+    ) -> None:
         cfgurl = dat["address"]
         longname = dat.get("name")
         (addr, port) = get_ss13_status_addr(cfgurl)
@@ -306,7 +313,7 @@ class GameServerStatus(commands.Cog):
 
         mapname: Optional[str]
         players: str
-        admins: Optional[int] = None
+        admins: Optional[int] = None  # noqa: F841
         station_time: Optional[str]
 
         try:
@@ -365,7 +372,9 @@ class GameServerStatus(commands.Cog):
         await ctx.tick()
 
     @addserver.command(name="ss14")
-    async def addserver_ss14(self, ctx: commands.Context, name: str, address: str, longname: Optional[str]) -> None:
+    async def addserver_ss14(
+        self, ctx: commands.Context, name: str, address: str, longname: Optional[str]
+    ) -> None:
         """
         Adds an SS14-type server.
 
@@ -374,9 +383,9 @@ class GameServerStatus(commands.Cog):
         `[longname]`: The "full name" of this server.
         """
         name = name.lower()
-        
+
         address = address.rstrip("/")
-        
+
         async with self.config.guild(ctx.guild).servers() as cur_servers:
             if name in cur_servers:
                 await ctx.send("A server with that name already exists.")
@@ -385,13 +394,15 @@ class GameServerStatus(commands.Cog):
             cur_servers[name] = {
                 "type": TYPE_SS14,
                 "address": address,
-                "name": longname
+                "name": longname,
             }
 
         await ctx.tick()
 
     @addserver.command(name="ss13")
-    async def addserver_ss13(self, ctx: commands.Context, name: str, address: str, longname: Optional[str]) -> None:
+    async def addserver_ss13(
+        self, ctx: commands.Context, name: str, address: str, longname: Optional[str]
+    ) -> None:
         """
         Adds an SS13-type server.
 
@@ -405,16 +416,14 @@ class GameServerStatus(commands.Cog):
                 await ctx.send("A server with that name already exists.")
                 return
 
-            cur_servers[name] = {
-                "type": TYPE_SS13,
-                "address": address,
-                "name": name
-            }
+            cur_servers[name] = {"type": TYPE_SS13, "address": address, "name": name}
 
         await ctx.tick()
 
     @addserver.command(name="qstat")
-    async def addserver_qstat(self, ctx: commands.Context, name: str, address: str, longname: Optional[str]) -> None:
+    async def addserver_qstat(
+        self, ctx: commands.Context, name: str, address: str, longname: Optional[str]
+    ) -> None:
         """
 
 
@@ -429,16 +438,14 @@ class GameServerStatus(commands.Cog):
                 await ctx.send("A server with that name already exists.")
                 return
 
-            cur_servers[name] = {
-                "type": TYPE_SS13,
-                "address": address,
-                "name": name
-            }
+            cur_servers[name] = {"type": TYPE_SS13, "address": address, "name": name}
 
         await ctx.tick()
 
     @statuscfg.command()
-    async def addwatch(self, ctx: commands.Context, name: str, channel: TextChannel) -> None:
+    async def addwatch(
+        self, ctx: commands.Context, name: str, channel: TextChannel
+    ) -> None:
         """
         Adds a server to the watch list. The bot will update a message with the server status every minute.
 
@@ -456,14 +463,12 @@ class GameServerStatus(commands.Cog):
             embed = await self.create_embed(ctx, name, servers[name])
             msg: Message = await channel.send(embed=embed)
 
-            watches.append({
-                "message": msg.id,
-                "server": name,
-                "channel": channel.id
-            })
+            watches.append({"message": msg.id, "server": name, "channel": channel.id})
 
     @statuscfg.command()
-    async def remwatch(self, ctx: commands.Context, name: str, channel: TextChannel) -> None:
+    async def remwatch(
+        self, ctx: commands.Context, name: str, channel: TextChannel
+    ) -> None:
         """
         Removes a server to the watch list.
 
@@ -481,7 +486,9 @@ class GameServerStatus(commands.Cog):
 
         await ctx.tick()
 
-    async def remove_watch_message(self, guild: discord.Guild, watch_data: Dict[str, Any]) -> None:
+    async def remove_watch_message(
+        self, guild: discord.Guild, watch_data: Dict[str, Any]
+    ) -> None:
         channel: discord.TextChannel = guild.get_channel(watch_data["channel"])
         try:
             message = await channel.fetch_message(watch_data["message"])
@@ -501,9 +508,12 @@ class GameServerStatus(commands.Cog):
             await ctx.send("No watches are currently configured!")
             return
 
-        content = "\n".join(map(lambda
-                                    w: f"<#{w['channel']}> - {w['server']} - [message](https://discord.com/channels/{ctx.guild.id}/{w['channel']}/{w['message']})",
-                                watches))
+        content = "\n".join(
+            map(
+                lambda w: f"<#{w['channel']}> - {w['server']} - [message](https://discord.com/channels/{ctx.guild.id}/{w['channel']}/{w['message']})",
+                watches,
+            )
+        )
 
         pages = list(pagify(content, page_length=1024))
         embed_pages = []
@@ -513,15 +523,17 @@ class GameServerStatus(commands.Cog):
                 description=page,
                 colour=await ctx.embed_colour(),
             )
-            embed.set_footer(text="Page {num}/{total}".format(num=idx, total=len(pages)))
+            embed.set_footer(
+                text="Page {num}/{total}".format(num=idx, total=len(pages))
+            )
             embed_pages.append(embed)
         await menus.menu(ctx, embed_pages, menus.DEFAULT_CONTROLS)
 
     @tasks.loop(minutes=1)
     async def printer(self) -> None:
         try:
-            for (g_id, dat) in (await self.config.all_guilds()).items():
-                for watch in dat["watches"]:
+            for guild_id, data in (await self.config.all_guilds()).items():
+                for watch in data["watches"]:
                     msg_id = watch["message"]
                     ch_id = watch["channel"]
                     server = watch["server"]
@@ -531,12 +543,17 @@ class GameServerStatus(commands.Cog):
                         msg: Message = await channel.fetch_message(msg_id)
                     except discord.NotFound:
                         # Message gone now, clear config I guess.
-                        async with self.config.guild_from_id(g_id).watches() as w_config:
-                            remove_list_elems(w_config, lambda x: x["message"] == msg_id)
-
+                        async with self.config.guild_from_id(
+                            guild_id
+                        ).watches() as w_config:
+                            remove_list_elems(
+                                w_config, lambda x: x["message"] == msg_id
+                            )
                         continue
 
-                    embed = await self.create_embed(channel, server, dat["servers"][server])
+                    embed = await self.create_embed(
+                        channel, server, data["servers"][server]
+                    )
 
                     await msg.edit(embed=embed)
 
@@ -546,14 +563,18 @@ class GameServerStatus(commands.Cog):
                     # Set back to default interval.
                     self.printer.change_interval(minutes=1)
         except discord.errors.HTTPException as ex:
-            log.exception("Error happened while trying to execute gameserverstatus loop.")
+            log.exception(
+                "Error happened while trying to execute gameserverstatus loop."
+            )
 
             # Too Many Requests, wait double the time now.
-            if (ex.code == 429):
+            if ex.code == 429:
                 self.printer.change_interval(minutes=min(self.printer.minutes * 2, 10))
 
         except Exception:
-            log.exception("Error happened while trying to execute gameserverstatus loop.")
+            log.exception(
+                "Error happened while trying to execute gameserverstatus loop."
+            )
 
     @printer.before_loop
     async def before_loop(self):
@@ -578,7 +599,16 @@ def get_ss14_status_url(url: str) -> str:
     else:
         scheme = "http"
 
-    return urlunparse((scheme, f"{parsed.hostname}:{port}", parsed.path, parsed.params, parsed.query, parsed.fragment))
+    return urlunparse(
+        (
+            scheme,
+            f"{parsed.hostname}:{port}",
+            parsed.path,
+            parsed.params,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
 
 
 def get_ss13_status_addr(url: str) -> Tuple[str, int]:
@@ -594,7 +624,7 @@ def get_ss13_status_addr(url: str) -> Tuple[str, int]:
     return (cast(str, parsed.hostname), cast(int, parsed.port))
 
 
-""" 
+"""
 async def get_status_ss13(address: str, port: int, channel: MChannel, admindata: Optional[List[MIdentifier]]) -> None:
     response = await asyncio.wait_for(byond_server_topic(address, port, b"?status"), timeout=5)
 
@@ -642,7 +672,9 @@ async def get_status_ss13(address: str, port: int, channel: MChannel, admindata:
  """
 
 
-async def byond_server_topic(address: str, port: int, message: bytes) -> Union[float, Dict[str, List[str]]]:
+async def byond_server_topic(
+    address: str, port: int, message: bytes
+) -> Union[float, Dict[str, List[str]]]:
     if message[0] != 63:
         message = b"?" + message
 
@@ -677,7 +709,7 @@ async def byond_server_topic(address: str, port: int, message: bytes) -> Union[f
 
 # Turns the BYOND packet into either a string or a float.
 def byond_decode_packet(packet: bytes) -> Union[float, str]:
-    if packet[0] == 0x2a:
+    if packet[0] == 0x2A:
         return cast(float, struct.unpack(">f", packet[1:5])[0])
 
     elif packet[0] == 0x06:
