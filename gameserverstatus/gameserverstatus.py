@@ -1,166 +1,95 @@
 import asyncio
-import logging
 import aiohttp
 import dateutil.parser
+import logging
 import struct
+
 from datetime import datetime, timezone
-from urllib.parse import urlparse, urlunparse, ParseResult, parse_qs
 from typing import Dict, Any, Optional, Tuple, cast, Union, List, TypeVar, Callable
+from urllib.parse import urlparse, urlunparse
+
 import discord
-from discord import Embed, Color, TextChannel, Message
+from discord import TextChannel, Message
 from discord.abc import Messageable
 from discord.ext import tasks
-from redbot.core import commands, bot, Config, checks
+
+from redbot.core import app_commands, commands, bot, Config, checks
 from redbot.core.utils import menus
-from redbot.core.utils.chat_formatting import pagify
+from redbot.core.utils.chat_formatting import pagify, humanize_timedelta
+
 
 log = logging.getLogger("red.wizard-cogs.gameserverstatus")
 
 TYPE_SS14 = "ss14"
 TYPE_SS13 = "ss13"
 
-SS14_RUN_LEVEL_PREGAME = 0
-SS14_RUN_LEVEL_GAME = 1
-SS14_RUN_LEVEL_POSTGAME = 2
-
-QSTAT_TYPES = {
-    "a2s": "Half-Life 2 new server",
-    "alienarenas": "Alien Arena server",
-    "ams": "America's Army v2.x server",
-    "bfbc2": "Battlefield Bad Company 2 server",
-    "bfs": "BFRIS server",
-    "cod2s": "Call of Duty 2 server",
-    "cod4s": "Call of Duty 4 server",
-    "cods": "Call of Duty server",
-    "crs": "Command and Conquer: Renegade server",
-    "crysis": "Crysis server",
-    "cubes": "Sauerbraten server",
-    "d3g": "Descent3 Gamespy Protocol server",
-    "d3p": "Descent3 PXO protocol server",
-    "d3s": "Descent3 server",
-    "dirtybomb": "DirtyBomb server",
-    "dm3s": "Doom 3 server",
-    "efm": "Star Trek: Elite Force server",
-    "efs": "Star Trek: Elite Force server",
-    "etqws": "QuakeWars server",
-    "eye": "All Seeing Eye Protocol server",
-    "farmsim": "FarmingSimulator server",
-    "fcs": "FarCry server",
-    "fls": "Frontlines-Fuel of War server",
-    "gps": "Gamespy Protocol server",
-    "grs": "Ghost Recon server",
-    "gs2": "Gamespy V2 Protocol server",
-    "gs3": "Gamespy V3 Protocol server",
-    "gs4": "Gamespy V4 Protocol server",
-    "h2s": "Hexen II server",
-    "hazes": "Haze Protocol server",
-    "hl2s": "Half-Life 2 server",
-    "hla2s": "Half-Life server",
-    "hlqs": "Half-Life server",
-    "hls": "Half-Life server",
-    "hrs": "Heretic II server",
-    "hws": "HexenWorld server",
-    "iourts": "Urban Terror server",
-    "jk2m": "Jedi Knight 2 server",
-    "jk2s": "Jedi Knight 2 server",
-    "jk3m": "Jedi Knight: Jedi Academy server",
-    "jk3s": "Jedi Knight: Jedi Academy server",
-    "kps": "Kingpin server",
-    "ksp": "Kerbal Space Program server",
-    "maqs": "Medal of Honor: Allied Assault (Q) server",
-    "mas": "Medal of Honor: Allied Assault server",
-    "mhs": "Medal of Honor: Allied Assault server",
-    "mumble": "Mumble server",
-    "netp": "NetPanzer server",
-    "nexuizs": "Nexuiz server",
-    "openarenas": "OpenArena server",
-    "ottds": "OpenTTD server",
-    "preys": "PREY server",
-    "prs": "Pariah server",
-    "q2s": "Quake II server",
-    "q3rallys": "Q3 Rally server",
-    "q3s": "Quake III: Arena server",
-    "q4s": "Quake 4 server",
-    "qs": "Quake server",
-    "quetoos": "Quetoo server",
-    "qws": "QuakeWorld server",
-    "reactions": "Reaction server",
-    "rss": "Ravenshield server",
-    "rws": "Return to Castle Wolfenstein server",
-    "sas": "Savage server",
-    "sfs": "Soldier of Fortune server",
-    "sgs": "Shogo: Mobile Armor Division server",
-    "smokingunss": "Smokin' Guns server",
-    "sms": "Serious Sam server",
-    "sns": "Sin server",
-    "sof2s": "Soldier of Fortune 2 server",
-    "starmade": "StarMade server",
-    "t2s": "Tribes 2 server",
-    "tbs": "Tribes server",
-    "tees": "Teeworlds server",
-    "terraria": "Terraria server",
-    "tf": "Titanfall server",
-    "tf2": "Titanfall 2 server",
-    "tf2e": "Titanfall 2 Protocol v2 server",
-    "tm": "TrackMania server",
-    "tremulousgpps": "Tremulous GPP server",
-    "tremulouss": "Tremulous server",
-    "ts2": "Teamspeak 2 server",
-    "ts3": "Teamspeak 3 server",
-    "turtlearenas": "Turtle Arena server",
-    "uns": "Unreal server",
-    "unvanquisheds": "Unvanquished server",
-    "ut2004s": "UT2004 server",
-    "ut2s": "Unreal Tournament 2003 server",
-    "ut3s": "UT3 server",
-    "vent": "Ventrilo server",
-    "warsows": "Warsow server",
-    "waws": "Call of Duty World at War server",
-    "wics": "World in Conflict server",
-    "woets": "Enemy Territory server",
-    "wolfs": "Wolfenstein server",
-    "wops": "World Of Padman server",
-    "xonotics": "Xonotic server",
-    "zeq2lites": "ZEQ2 Lite server",
+SS14_RUN_LEVEL_STATUS = {
+    0: "In Lobby",
+    1: "In game",
+    2: "Ending",
 }
+
+
+class StatusFetchError(Exception):
+    pass
+
+
+class SS14ServerStatus(discord.ui.LayoutView):
+    def __init__(
+        self,
+        *,
+        name: str,
+        player_count: str,
+        status: str,
+        gamemap: str,
+        preset: str,
+        round_id: str,
+        color: discord.Color,
+    ):
+        super().__init__()
+
+        self.container = discord.ui.Container(
+            discord.ui.TextDisplay(content=f"**{name}**"),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(
+                content=f"**Players:** {player_count}\n**Status:** {status}\n**Map:** {gamemap}\n**Preset:** {preset}"
+            ),
+            accent_color=color,
+        )
+        self.footer_text = discord.ui.TextDisplay(content=f"-# Round ID: {round_id}")
+
+        self.add_item(self.container)
+        self.add_item(self.footer_text)
 
 
 class GameServerStatus(commands.Cog):
     def __init__(self, bot: bot.Red) -> None:
+        self.bot = bot
         self.config = Config.get_conf(self, identifier=5645456348)
+        self.session = aiohttp.ClientSession(
+            headers={
+                "User-Agent": "Py Aiohttp - Wizard-cogs/GameServerStatus (+https://github.com/space-wizards/wizard-cogs)"
+            }
+        )
 
         default_guild: Dict[str, Any] = {"servers": {}, "watches": []}
-
         self.config.register_guild(**default_guild)
 
         self.printer.start()
-        self.bot = bot
 
-    def cog_unload(self) -> None:
+    async def cog_unload(self) -> None:
+        await self.session.close()
         self.printer.cancel()
 
-    async def is_guild(self) -> bool:
-        if isinstance(self.channel, discord.channel.DMChannel):
-            await self.channel.send("You cannot use this command in DMs.")
-            return False
-        return True
-
-    @commands.hybrid_group()
-    @checks.admin()
-    @commands.check(is_guild)
-    async def statuscfg(self, ctx: commands.Context) -> None:
-        """
-        Commands for configuring the status servers.
-        """
-        pass
-
-    @commands.hybrid_command()
-    @commands.check(is_guild)
-    async def status(self, ctx: commands.Context, server: Optional[str]) -> None:
-        """
-        Shows status for a game server. Leave out server name to get a list of all servers.
-        """
-
+    @commands.command()
+    @commands.guild_only()
+    async def status(
+        self,
+        ctx: commands.Context,
+        server: Optional[str],
+        legacy: Optional[bool] = False,
+    ) -> None:
+        """Shows status for a game server. Leave out server name to get a list of all servers."""
         if not server:
             await self.show_server_list(ctx)
             return
@@ -174,11 +103,86 @@ class GameServerStatus(commands.Cog):
                 await ctx.send("That server does not exist!")
                 return
 
-            dat = cfg_lower[server]
+            data = cfg_lower[server]
+            try:
+                fetched_data = await self.get_ss14_server_status(data)
+            except StatusFetchError:
+                return await ctx.send("An error has occured when fetching server info.")
 
-            embed = await self.create_embed(ctx, server, dat)
+            if legacy is True:
+                return await ctx.send(
+                    embed=legacy_embed(
+                        **fetched_data, color=await self.bot.get_embed_color(ctx)
+                    )
+                )
+            else:
+                component_view = SS14ServerStatus(
+                    **fetched_data,
+                    color=await self.bot.get_embed_color(ctx),
+                )
+                return await ctx.send(view=component_view)
 
-            await ctx.send(embed=embed)
+    @app_commands.command(name="status")
+    @app_commands.guild_only()
+    @app_commands.guild_install()
+    @app_commands.rename(server_name="server")
+    async def slash_status(
+        self, interaction: discord.Interaction, server_name: str, legacy: bool = False
+    ) -> None:
+        """Shows status for a game server.
+
+        Parameters
+        -----------
+        server: str
+            The server to query.
+        legacy: bool
+            Legacy mode, for older Discord clients
+        """
+        server_name = server_name.lower()
+        game_servers: dict = await self.config.guild(interaction.guild).servers()
+
+        game_server_data = game_servers.get(server_name)
+        if game_server_data is None:
+            return await interaction.response.send_message(
+                "That server does not exist!", ephemeral=True
+            )
+
+        # Defer here so we can wait for the HTTP status to return
+        await interaction.response.defer(thinking=True)
+        try:
+            fetched_data = await self.get_ss14_server_status(game_server_data)
+        except StatusFetchError:
+            return await interaction.followup.send(
+                "An error has occured when fetching server info."
+            )
+
+        if legacy is True:
+            return await interaction.followup.send(
+                embed=legacy_embed(
+                    **fetched_data,
+                    color=await self.bot.get_embed_color(interaction.channel),
+                )
+            )
+        else:
+            return await interaction.followup.send(
+                view=SS14ServerStatus(
+                    **fetched_data,
+                    color=await self.bot.get_embed_color(interaction.channel),
+                )
+            )
+
+    @slash_status.autocomplete("server_name")
+    async def slash_status_server_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> List[app_commands.Choice[str]]:
+        server_names = list(
+            (await self.config.guild(interaction.guild).servers()).keys()
+        )  # JSON is practically memcached anyhow
+        return [
+            app_commands.Choice(name=server.capitalize(), value=server)
+            for server in server_names
+            if current.lower() in server.lower()
+        ][:25]  # Discord's Choice limit is 25, ensure we don't exceed it
 
     async def show_server_list(self, ctx: commands.Context) -> None:
         servers = await self.config.guild(ctx.guild).servers()
@@ -205,146 +209,88 @@ class GameServerStatus(commands.Cog):
             embed_pages.append(embed)
         await menus.menu(ctx, embed_pages, menus.DEFAULT_CONTROLS)
 
-    async def create_embed(
-        self, ctx: Messageable, cfgname: str, dat: Dict[str, str]
-    ) -> Embed:
-        embed = Embed()
-        embed.color = Color.red()
-
-        async def do_load() -> None:
-            if dat["type"] == TYPE_SS14:
-                await self.do_status_ss14(ctx, cast(str, cfgname), dat, embed)
-
-            elif dat["type"] == TYPE_SS13:
-                await self.do_status_ss13(ctx, cast(str, cfgname), dat, embed)
-
-        try:
-            await asyncio.wait_for(do_load(), timeout=5)
-
-        except StatusException as e:
-            embed.description = f"**{e.message}**"
-
-        except asyncio.TimeoutError:
-            embed.description = "**Server timed out**"
-
-        except:
-            embed.description = "**Unknown error occured**"
-            log.exception("exception in status handler")
-
-        else:
-            embed.color = await self.bot.get_embed_color(ctx)
-
-        return embed
-
-    async def do_status_ss14(
-        self, ctx: Messageable, cfgname: str, dat: Dict[str, str], embed: Embed
-    ) -> None:
-        cfgurl = dat["address"]
-        longname = dat.get("name")
+    async def get_ss14_server_status(self, config: Dict[str, str]) -> Dict[str, str]:
+        """Fetches and returns the status endpoint from a SS14 server."""
+        cfgurl = config["address"]
+        longname = config.get("name")  # noqa: F841
         addr = get_ss14_status_url(cfgurl)
-        log.debug(f"SS14 addr is {addr}")
-
-        embed.set_footer(text=f"{cfgname}: {cfgurl}")
-        embed.title = longname
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(addr + "/status") as resp:
-                json = await resp.json()
-
-            count = json.get("players", "?")
-            countmax = json.get("soft_max_players", "?")
-            name = json.get("name", "?")
-            round_id = json.get("round_id", "?")
-            gamemap = json.get("map", "?")
-            preset = json.get("preset", "?")
-
-            if name:
-                embed.title = name
-
-            embed.add_field(name="Players Online", value=f"{count}/{countmax}")
-
-            rlevel = json.get("run_level")
-            if rlevel is not None:
-                status = "Unknown"
-
-                if rlevel == SS14_RUN_LEVEL_PREGAME:
-                    status = "Pre game lobby"
-                elif rlevel == SS14_RUN_LEVEL_GAME:
-                    status = "In game"
-                elif rlevel == SS14_RUN_LEVEL_POSTGAME:
-                    status = "Post game"
-
-                embed.add_field(name="Status", value=status)
-
-            starttimestr = json.get("round_start_time")
-            if starttimestr:
-                starttime = dateutil.parser.isoparse(starttimestr)
-                delta = datetime.now(timezone.utc) - starttime
-                s = []
-                if delta.days > 0:
-                    s.append(f"{delta.days} days")
-
-                minutes = delta.seconds // 60
-                hours = minutes // 60
-                if hours > 0:
-                    s.append(f"{hours} hours")
-                    minutes %= 60
-
-                s.append(f"{minutes} minutes")
-
-                embed.add_field(name="Round length", value=", ".join(s))
-
-                embed.add_field(name="Round ID", value=round_id)
-
-                embed.add_field(name="Map", value=gamemap)
-
-                embed.add_field(name="Preset", value=preset)
-
-    async def do_status_ss13(
-        self, ctx: Messageable, name: str, dat: Dict[str, str], embed: Embed
-    ) -> None:
-        cfgurl = dat["address"]
-        longname = dat.get("name")
-        (addr, port) = get_ss13_status_addr(cfgurl)
-        response = await byond_server_topic(addr, port, b"?status")
-
-        embed.title = longname
-        embed.set_footer(text=f"{name}: {cfgurl}")
-
-        mapname: Optional[str]
-        players: str
-        admins: Optional[int] = None  # noqa: F841
-        station_time: Optional[str]
+        log.debug("SS14 addr is {}".format(addr))
 
         try:
-            if not isinstance(response, Dict):
-                raise NotImplementedError("Non-list returns are not accepted.")
-
-            mapname = None
-            if "map_name" in response:
-                mapname = response["map_name"][0]
-            station_time = None
-            if "station_time" in response:
-                station_time = response["station_time"][0]
-            players = response["players"][0]
-
+            log.debug("Starting to query")
+            async with self.session.get(addr + "/status") as resp:
+                log.debug("Got response.")
+                json = await resp.json()
         except:
-            log.exception("Got unsupported response")
-            raise StatusException("Server sent unsupported response.")
+            raise StatusFetchError
 
-        embed.add_field(name="Players Online", value=players)
-        if mapname:
-            embed.add_field(name="Map", value=mapname)
+        count = json.get("players", "?")
+        count_max = json.get("soft_max_players", "?")
+        name = json.get("name", "?")
+        round_id = json.get("round_id", "?")
+        gamemap = json.get("map", "?")
+        preset = json.get("preset", "?")
+        run_level = json.get("run_level")
+        round_start_time = json.get("round_start_time")
 
-        if station_time:
-            embed.add_field(name="Station Time", value=station_time)
+        player_count = f"{count}/{count_max}"
+        if run_level == 1 and round_start_time is not None:
+            start_time = dateutil.parser.isoparse(round_start_time)
+            delta = datetime.now(timezone.utc) - start_time
+            status = f"{SS14_RUN_LEVEL_STATUS.get(run_level, 'unknown')} ({humanize_timedelta(timedelta=delta, maximum_units=2)})"
+        else:
+            status = SS14_RUN_LEVEL_STATUS.get(run_level, "Unknown")
 
+        return {
+            "name": name,
+            "player_count": player_count,
+            "status": status,
+            "gamemap": gamemap,
+            "preset": preset,
+            "round_id": round_id,
+        }
+
+    @commands.group()
+    @checks.admin_or_permissions(manage_guild=True)
+    @commands.guild_only()
+    async def statuscfg(self, ctx: commands.Context) -> None:
+        """
+        Commands for configuring the status servers.
+        """
+        pass
+
+    # -- Command group for adding & removing servers
     @statuscfg.group()
     async def addserver(self, ctx: commands.Context) -> None:
         """
         Adds a status server.
         """
         pass
+
+    @addserver.command(name="ss14")
+    async def addserver_ss14(
+        self, ctx: commands.Context, name: str, address: str, longname: Optional[str]
+    ) -> None:
+        """
+        Adds an SS14-type server.
+
+        `<name>`: The short name to refer to this server.
+        `<address>`: The `ss14://` or `ss14s://` address of this server.
+        `[longname]`: The "full name" of this server.
+        """
+        name = name.lower()
+        address = address.rstrip("/")
+
+        async with self.config.guild(ctx.guild).servers() as cur_servers:
+            if name in cur_servers:
+                return await ctx.send("A server with that name already exists.")
+
+            cur_servers[name] = {
+                "type": TYPE_SS14,
+                "address": address,
+                "name": longname,
+            }
+        await ctx.tick()
 
     @statuscfg.command()
     async def removeserver(self, ctx: commands.Context, name: str) -> None:
@@ -371,77 +317,6 @@ class GameServerStatus(commands.Cog):
 
         await ctx.tick()
 
-    @addserver.command(name="ss14")
-    async def addserver_ss14(
-        self, ctx: commands.Context, name: str, address: str, longname: Optional[str]
-    ) -> None:
-        """
-        Adds an SS14-type server.
-
-        `<name>`: The short name to refer to this server.
-        `<address>`: The `ss14://` or `ss14s://` address of this server.
-        `[longname]`: The "full name" of this server.
-        """
-        name = name.lower()
-
-        address = address.rstrip("/")
-
-        async with self.config.guild(ctx.guild).servers() as cur_servers:
-            if name in cur_servers:
-                await ctx.send("A server with that name already exists.")
-                return
-
-            cur_servers[name] = {
-                "type": TYPE_SS14,
-                "address": address,
-                "name": longname,
-            }
-
-        await ctx.tick()
-
-    @addserver.command(name="ss13")
-    async def addserver_ss13(
-        self, ctx: commands.Context, name: str, address: str, longname: Optional[str]
-    ) -> None:
-        """
-        Adds an SS13-type server.
-
-        `<name>`: The short name to refer to this server.
-        `<address>`: The `byond://` address of this server.
-        `[longname]`: The "full name" of this server.
-        """
-        name = name.lower()
-        async with self.config.guild(ctx.guild).servers() as cur_servers:
-            if name in cur_servers:
-                await ctx.send("A server with that name already exists.")
-                return
-
-            cur_servers[name] = {"type": TYPE_SS13, "address": address, "name": name}
-
-        await ctx.tick()
-
-    @addserver.command(name="qstat")
-    async def addserver_qstat(
-        self, ctx: commands.Context, name: str, address: str, longname: Optional[str]
-    ) -> None:
-        """
-
-
-        `<name>`: The short name to refer to this server.
-        `<type>`: Server type.
-        `<address>`: The `byond://` address of this server.
-        `[longname]`: The "full name" of this server.
-        """
-        name = name.lower()
-        async with self.config.guild(ctx.guild).servers() as cur_servers:
-            if name in cur_servers:
-                await ctx.send("A server with that name already exists.")
-                return
-
-            cur_servers[name] = {"type": TYPE_SS13, "address": address, "name": name}
-
-        await ctx.tick()
-
     @statuscfg.command()
     async def addwatch(
         self, ctx: commands.Context, name: str, channel: TextChannel
@@ -460,10 +335,17 @@ class GameServerStatus(commands.Cog):
                 await ctx.send("That server does not exist!")
                 return
 
-            embed = await self.create_embed(ctx, name, servers[name])
-            msg: Message = await channel.send(embed=embed)
+            data = servers[name]
 
+            fetched_data = await self.get_ss14_server_status(data)
+            component_view = SS14ServerStatus(
+                **fetched_data, color=self.bot.get_embed_color(ctx.channel)
+            )
+
+            msg = await channel.send(view=component_view)
             watches.append({"message": msg.id, "server": name, "channel": channel.id})
+
+            return await ctx.send("The server watch is successfully added.")
 
     @statuscfg.command()
     async def remwatch(
@@ -489,7 +371,7 @@ class GameServerStatus(commands.Cog):
     async def remove_watch_message(
         self, guild: discord.Guild, watch_data: Dict[str, Any]
     ) -> None:
-        channel: discord.TextChannel = guild.get_channel(watch_data["channel"])
+        channel = guild.get_channel(watch_data["channel"])
         try:
             message = await channel.fetch_message(watch_data["message"])
             await message.delete()
@@ -529,8 +411,9 @@ class GameServerStatus(commands.Cog):
             embed_pages.append(embed)
         await menus.menu(ctx, embed_pages, menus.DEFAULT_CONTROLS)
 
-    @tasks.loop(minutes=1)
+    @tasks.loop(minutes=3)
     async def printer(self) -> None:
+        log.debug("Starting watcher loop.")
         try:
             for guild_id, data in (await self.config.all_guilds()).items():
                 for watch in data["watches"]:
@@ -539,8 +422,8 @@ class GameServerStatus(commands.Cog):
                     server = watch["server"]
 
                     try:
-                        channel: TextChannel = self.bot.get_channel(ch_id)
-                        msg: Message = await channel.fetch_message(msg_id)
+                        channel = self.bot.get_channel(ch_id)
+                        msg = await channel.fetch_message(msg_id)
                     except discord.NotFound:
                         # Message gone now, clear config I guess.
                         async with self.config.guild_from_id(
@@ -551,29 +434,26 @@ class GameServerStatus(commands.Cog):
                             )
                         continue
 
-                    embed = await self.create_embed(
-                        channel, server, data["servers"][server]
+                    try:
+                        fetched_data = await self.get_ss14_server_status(
+                            data["servers"][server]
+                        )
+                    except StatusFetchError:
+                        continue  # End the function early just because we can't fetch the status
+                    view = SS14ServerStatus(
+                        **fetched_data, color=await self.bot.get_embed_color(msg)
                     )
-
-                    await msg.edit(embed=embed)
-
-                    # Sleep between edits in an attempt to not get rate-limited.
-                    await asyncio.sleep(2)
-
-                    # Set back to default interval.
-                    self.printer.change_interval(minutes=1)
-        except discord.errors.HTTPException as ex:
+                    await msg.edit(
+                        content="", view=view
+                    )  # Ensure backwards compatability with old watches
+        except discord.errors.HTTPException as e:
             log.exception(
-                "Error happened while trying to execute gameserverstatus loop."
+                "Error happened while trying to execute gameserverstatus loop.",
+                exc_info=e,
             )
-
-            # Too Many Requests, wait double the time now.
-            if ex.code == 429:
-                self.printer.change_interval(minutes=min(self.printer.minutes * 2, 10))
-
-        except Exception:
+        except Exception as e:
             log.exception(
-                "Error happened while trying to execute gameserverstatus loop."
+                "An unexpected error occurred in the printer loop.", exc_info=e
             )
 
     @printer.before_loop
@@ -611,118 +491,23 @@ def get_ss14_status_url(url: str) -> str:
     )
 
 
-def get_ss13_status_addr(url: str) -> Tuple[str, int]:
-    if "//" not in url:
-        url = "//" + url
-
-    parsed = urlparse(url, "byond", allow_fragments=False)
-
-    port = parsed.port
-    if not port:
-        raise ValueError("No port specified!")
-
-    return (cast(str, parsed.hostname), cast(int, parsed.port))
-
-
-"""
-async def get_status_ss13(address: str, port: int, channel: MChannel, admindata: Optional[List[MIdentifier]]) -> None:
-    response = await asyncio.wait_for(byond_server_topic(address, port, b"?status"), timeout=5)
-
-    mapname: Optional[str]
-    players: str
-    admins: Optional[int] = None
-
-    try:
-        if not isinstance(response, Dict):
-            raise NotImplementedError("Non-list returns are not accepted.")
-
-        mapname = None
-        if "map_name" in response:
-            mapname = response["map_name"][0]
-        station_time = None
-        if "station_time" in response:
-            station_time = response["station_time"][0]
-        players = response["players"][0]
-        if admindata and "admins" in response:
-            for identifier in admindata:
-                if channel.is_identifier(identifier):
-                    admins = int(response["admins"][0])
-                    break
-
-    except:
-        await channel.send("Server sent unsupported response.")
-        log.exception("Got unsupported response")
-        return
-
-    out = f"{players} players online"
-
-    if mapname:
-        out += f", map is {mapname}"
-
-    if station_time:
-        out += f", station time: {station_time}"
-
-    if admins is not None:
-        out += f", **{admins}** admins online. *Note: unable to provide AFK statistics for administrators.*"
-
-    else:
-        out += "."
-
-    await channel.send(out)
- """
-
-
-async def byond_server_topic(
-    address: str, port: int, message: bytes
-) -> Union[float, Dict[str, List[str]]]:
-    if message[0] != 63:
-        message = b"?" + message
-
-    # Send a packet to trick BYOND into doing a world.Topic() call.
-    # https://github.com/N3X15/ss13-watchdog/blob/master/Watchdog.py#L582
-    packet = b"\x00\x83"
-    packet += struct.pack(">H", len(message) + 6)
-    packet += b"\x00" * 5
-    packet += message
-    packet += b"\x00"
-
-    reader, writer = await asyncio.open_connection(address, port)
-    writer.write(packet)
-
-    await writer.drain()
-
-    if await reader.read(2) != b"\x00\x83":
-        raise IOError("BYOND server returned data invalid.")
-
-    # Read response
-    size = struct.unpack(">H", await reader.read(2))[0]
-    response = await reader.read(size)
-    # logger.info(response)
-    writer.close()
-
-    ret = byond_decode_packet(response)
-    if isinstance(ret, str):
-        return parse_qs(ret)
-
-    return ret
-
-
-# Turns the BYOND packet into either a string or a float.
-def byond_decode_packet(packet: bytes) -> Union[float, str]:
-    if packet[0] == 0x2A:
-        return cast(float, struct.unpack(">f", packet[1:5])[0])
-
-    elif packet[0] == 0x06:
-        return packet[1:-1].decode("ascii")
-
-    raise NotImplementedError(f"Unknown BYOND data code: 0x{packet[0]:x}")
-
-
-class StatusException(Exception):
-    def __init__(self, message: str):
-        super().__init__(message)
-
-        self.message = message
+def legacy_embed(
+    *,
+    name: str,
+    player_count: str,
+    status: str,
+    gamemap: str,
+    preset: str,
+    round_id: str,
+    color: discord.Color,
+) -> discord.Embed:
+    embed = discord.Embed(color=color, title=name)
+    embed.add_field(name="Players Online", value=player_count)
+    embed.add_field(name="Status", value=status)
+    embed.add_field(name="Round ID", value=round_id)
+    embed.add_field(name="Map", value=gamemap)
+    embed.add_field(name="Preset", value=preset)
+    return embed
 
 
 T = TypeVar("T")
@@ -730,6 +515,6 @@ T = TypeVar("T")
 
 # .NET List<T>.RemoveAll(Predicate<T>)
 # O(n^2) worst case (.NET's is O(n))
-def remove_list_elems(l: List[T], pred: Callable[[T], bool]) -> None:
-    for i in list(filter(pred, l)):
-        l.remove(i)
+def remove_list_elems(itter_list: List[T], pred: Callable[[T], bool]) -> None:
+    for i in list(filter(pred, itter_list)):
+        itter_list.remove(i)
