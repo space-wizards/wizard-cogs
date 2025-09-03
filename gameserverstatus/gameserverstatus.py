@@ -1,27 +1,20 @@
-import asyncio
 import aiohttp
 import dateutil.parser
 import logging
-import struct
 
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional, Tuple, cast, Union, List, TypeVar, Callable
+from typing import Dict, Any, Optional, List, TypeVar, Callable
 from urllib.parse import urlparse, urlunparse
 
 import discord
-from discord import TextChannel, Message
-from discord.abc import Messageable
+from discord import TextChannel
 from discord.ext import tasks
 
 from redbot.core import app_commands, commands, bot, Config, checks
 from redbot.core.utils import menus
 from redbot.core.utils.chat_formatting import pagify, humanize_timedelta
 
-
 log = logging.getLogger("red.wizard-cogs.gameserverstatus")
-
-TYPE_SS14 = "ss14"
-TYPE_SS13 = "ss13"
 
 SS14_RUN_LEVEL_STATUS = {
     0: "In Lobby",
@@ -89,7 +82,11 @@ class GameServerStatus(commands.Cog):
         server: Optional[str],
         legacy: Optional[bool] = False,
     ) -> None:
-        """Shows status for a game server. Leave out server name to get a list of all servers."""
+        """Shows status for a game server.
+
+        Leave out server name to get a list of all servers.
+        Set `legacy` to `True` to display the status as an old Discord embed.
+        """
         if not server:
             await self.show_server_list(ctx)
             return
@@ -286,7 +283,7 @@ class GameServerStatus(commands.Cog):
                 return await ctx.send("A server with that name already exists.")
 
             cur_servers[name] = {
-                "type": TYPE_SS14,
+                "type": "ss14",
                 "address": address,
                 "name": longname,
             }
