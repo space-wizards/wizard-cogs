@@ -441,7 +441,7 @@ class GameServerStatus(commands.Cog):
                         **fetched_data, color=await self.bot.get_embed_color(msg)
                     )
                     await msg.edit(
-                        content="", view=view
+                        content="", embed=None, view=view
                     )  # Ensure backwards compatability with old watches
         except discord.errors.HTTPException as e:
             log.exception(
