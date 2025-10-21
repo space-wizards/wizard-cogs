@@ -65,7 +65,7 @@ class GameServerStatus(commands.Cog):
             }
         )
 
-        default_guild: Dict[str, Any] = {"servers": {}, "watches": []}
+        default_guild: Dict[str, Any] = {"servers": {}, "watches": [], "slashcommandvisible": True}
         self.config.register_guild(**default_guild)
 
         self.printer.start()
@@ -137,6 +137,7 @@ class GameServerStatus(commands.Cog):
         """
         server_name = server_name.lower()
         game_servers: dict = await self.config.guild(interaction.guild).servers()
+        visible_command = not await self.config.guild(interaction.guild).slashcommandvisible()
 
         game_server_data = game_servers.get(server_name)
         if game_server_data is None:
@@ -145,7 +146,7 @@ class GameServerStatus(commands.Cog):
             )
 
         # Defer here so we can wait for the HTTP status to return
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer(thinking=True, ephemeral=visible_command)
         try:
             fetched_data = await self.get_ss14_server_status(game_server_data)
         except StatusFetchError:
@@ -155,6 +156,7 @@ class GameServerStatus(commands.Cog):
 
         if legacy is True:
             return await interaction.followup.send(
+                ephemeral=visible_command,
                 embed=legacy_embed(
                     **fetched_data,
                     color=await self.bot.get_embed_color(interaction.channel),
@@ -162,6 +164,7 @@ class GameServerStatus(commands.Cog):
             )
         else:
             return await interaction.followup.send(
+                ephemeral=visible_command,
                 view=SS14ServerStatus(
                     **fetched_data,
                     color=await self.bot.get_embed_color(interaction.channel),
@@ -452,6 +455,23 @@ class GameServerStatus(commands.Cog):
             log.exception(
                 "An unexpected error occurred in the printer loop.", exc_info=e
             )
+
+    @statuscfg.command()
+    async def slashcommandvisible(self, ctx: commands.Context, enabled: bool = None):
+        """
+        Should slash commands be hidden? (Visible only to the sender.)
+        """
+        if enabled is None:
+            setting = await self.config.guild(ctx.guild).slashcommandvisible()
+            if setting is True:
+                await ctx.send("Status slash commands are currently visible to everyone in the channel they are run in.")
+                return
+            else:
+                await ctx.send("Status slash commands are currently only visible to the sender.")
+                return
+        await self.config.guild(ctx.guild).slashcommandvisible.set(enabled)
+        await ctx.tick()
+
 
     @printer.before_loop
     async def before_loop(self):
