@@ -339,7 +339,7 @@ class GameServerStatus(commands.Cog):
 
             fetched_data = await self.get_ss14_server_status(data)
             component_view = SS14ServerStatus(
-                **fetched_data, color=self.bot.get_embed_color(ctx.channel)
+                **fetched_data, color=await self.bot.get_embed_color(ctx.channel)
             )
 
             msg = await channel.send(view=component_view)
