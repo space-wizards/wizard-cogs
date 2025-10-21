@@ -416,7 +416,7 @@ class GameServerStatus(commands.Cog):
             embed_pages.append(embed)
         await menus.menu(ctx, embed_pages, menus.DEFAULT_CONTROLS)
 
-    @tasks.loop(minutes=3)
+    @tasks.loop(minutes=1)
     async def printer(self) -> None:
         log.debug("Starting watcher loop.")
         try:
