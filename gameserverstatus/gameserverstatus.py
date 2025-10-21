@@ -70,6 +70,11 @@ class GameServerStatus(commands.Cog):
 
         self.printer.start()
 
+    @commands.Cog.listener()
+    async def on_guild_remove(self, guild: discord.Guild) -> None:
+        # Remove watchers
+        await self.config.guild(guild).watches.set({})
+
     async def cog_unload(self) -> None:
         await self.session.close()
         self.printer.cancel()
