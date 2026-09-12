@@ -50,13 +50,59 @@ class Button(discord.ui.View):
 
 ACTION_TIMEOUT = 5
 
-async def doaction(session: aiohttp.ClientSession, server, action: str) -> tuple[int, str]:
+def short_version(version: str) -> str:
+    return version[:7]
+
+async def doaction(session: aiohttp.ClientSession, server, action: str, params: Optional[dict] = None) -> tuple[int, str]:
     async def load() -> tuple[int, str]:
         async with session.post(server["address"] + f"/instances/{server['key']}/{action}",
-                                auth=aiohttp.BasicAuth(server['key'], server['token'])) as resp:
+                                auth=aiohttp.BasicAuth(server['key'], server['token']),
+                                params=params) as resp:
             return resp.status, await resp.text()
 
     return await asyncio.wait_for(load(), timeout=ACTION_TIMEOUT)
+
+async def getversions(session: aiohttp.ClientSession, server) -> tuple[int, Any]:
+    async def load() -> tuple[int, Any]:
+        async with session.get(server["address"] + f"/instances/{server['key']}/versions",
+                               auth=aiohttp.BasicAuth(server['key'], server['token'])) as resp:
+            if resp.status != 200:
+                return resp.status, await resp.text()
+            return resp.status, await resp.json()
+
+    return await asyncio.wait_for(load(), timeout=ACTION_TIMEOUT)
+
+
+# Dropdown to pick which version to revert to
+class VersionSelect(discord.ui.Select):
+    def __init__(self, versions):
+        options = [
+            discord.SelectOption(
+                label=short_version(v["version"]) + (" (current)" if v.get("current") else ""),
+                value=v["version"],
+                description=str(v.get("time", ""))[:100],
+            )
+            for v in versions[:25]
+        ]
+        super().__init__(placeholder="Select a version to revert to...", options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        view: VersionSelectView = self.view
+        if interaction.user != view.member:
+            return await interaction.response.send_message("You cannot use this.", ephemeral=True)
+
+        view.selected_version = self.values[0]
+        await interaction.response.edit_message(
+            content=f"Reverting to `{short_version(view.selected_version)}`...", view=None)
+        view.stop()
+
+
+class VersionSelectView(discord.ui.View):
+    def __init__(self, member, versions, timeout=60):
+        super().__init__(timeout=timeout)
+        self.member = member
+        self.selected_version = None
+        self.add_item(VersionSelect(versions))
 
 class poweractions(commands.Cog):
     def __init__(self, bot, *args, **kwargs):
@@ -279,6 +325,83 @@ class poweractions(commands.Cog):
                     return
 
             await ctx.send("Server stopped successfully.")
+
+    @checks.admin()
+    @commands.hybrid_command()
+    async def revertserver(self, ctx: commands.Context, server: Optional[str], immediate: bool = False) -> None:
+        """
+        Reverts a server to a previous version. Only works for servers on the manifest update provider.
+
+        `<server>`: The name of the server to revert.
+        `<immediate>`: If True, force-stops the server now instead of waiting for the current round to end.
+        """
+        if not server:
+            await self.list(ctx)
+            return
+
+        async with ctx.typing():
+            foundServer = await self.get_server_from_arg(ctx, server)
+            if foundServer is None:
+                return
+
+            servername, serverdata = foundServer
+
+            async with aiohttp.ClientSession() as session:
+                try:
+                    status, versions = await getversions(session, serverdata)
+                    if status != 200:
+                        await ctx.send(f"Failed to fetch versions for this server. Wrong status code: {status}")
+                        log.debug(f"Failed to fetch versions for {servername}. Wrong status code: {status} "
+                                 f"Response: {versions}")
+                        return
+
+                except asyncio.TimeoutError:
+                    await ctx.send("Server timed out.")
+                    return
+
+                except Exception:
+                    await ctx.send(
+                        f"An Unknown error occured while trying to fetch versions for this server, Logging to console...")
+                    log.exception(
+                        f"An error occurred while trying to fetch versions for server {servername}.")
+                    return
+
+        if not versions:
+            await ctx.send("No versions are available to revert to for this server.")
+            return
+
+        mode = "immediately" if immediate else "after the current round ends"
+        view = VersionSelectView(member=ctx.author, versions=versions)
+        await ctx.send(f"Select a version to revert **{servername}** to. The revert will happen {mode}.", view=view)
+        await view.wait()
+
+        if view.selected_version is None:
+            return
+
+        async with ctx.typing():
+            async with aiohttp.ClientSession() as session:
+                try:
+                    status, response = await doaction(session, serverdata, "revert", params={
+                        "version": view.selected_version,
+                        "immediate": str(immediate).lower(),
+                    })
+                    if status != 200:
+                        await ctx.send(f"Failed to revert the server. Wrong status code: {status}")
+                        log.debug(f"Failed to revert {servername}. Wrong status code: {status} Response: {response}")
+                        return
+
+                except asyncio.TimeoutError:
+                    await ctx.send("Server timed out.")
+                    return
+
+                except Exception:
+                    await ctx.send(
+                        f"An Unknown error occured while trying to revert this server, Logging to console...")
+                    log.exception(
+                        f"An error occurred while trying to revert server {servername}.")
+                    return
+
+            await ctx.send(f"Server `{servername}` is being reverted to `{short_version(view.selected_version)}`.")
 
     async def get_server_from_arg(self, ctx: commands.Context, server) -> Optional[Any]:
         selectedserver = await self.config.guild(ctx.guild).servers()
